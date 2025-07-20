@@ -149,6 +149,10 @@ class DebugPanel(tk.Toplevel):
     def _update_display(self):
         """화면 업데이트"""
         try:
+            # 위젯이 유효한지 확인
+            if not self.winfo_exists() or not self.log_text.winfo_exists():
+                return
+            
             # 현재 텍스트 가져오기
             current_text = self.log_text.get("1.0", tk.END).strip()
             
@@ -209,8 +213,19 @@ class DebugPanel(tk.Toplevel):
     
     def on_closing(self):
         """창 닫기"""
-        self.stop_logging()
-        self.destroy()
+        try:
+            # 로깅 중단
+            self.stop_logging()
+            
+            # 로그 핸들러 제거
+            if hasattr(self, 'debug_handler'):
+                logging.getLogger().removeHandler(self.debug_handler)
+            
+            # 창 파괴
+            self.destroy()
+        except Exception as e:
+            print(f"디버그 창 닫기 오류: {e}")
+            self.destroy()
     
     def show(self):
         """창 표시"""

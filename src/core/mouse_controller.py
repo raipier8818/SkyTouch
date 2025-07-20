@@ -31,15 +31,27 @@ class MouseState:
 class MouseController:
     """마우스 제어 클래스"""
     
-    def __init__(self):
-        """마우스 컨트롤러 초기화"""
+    def __init__(self, hand_tracker=None):
+        """
+        마우스 컨트롤러 초기화
+        
+        Args:
+            hand_tracker: HandTracker 인스턴스 (실제 웹캠 해상도 가져오기용)
+        """
         try:
             # 화면 크기 가져오기
             self.screen_width, self.screen_height = pyautogui.size()
             
+            # HandTracker 참조 저장 (실제 웹캠 해상도 가져오기용)
+            self.hand_tracker = hand_tracker
+            
             # 마우스 설정
             pyautogui.FAILSAFE = True  # 마우스를 화면 모서리로 이동하면 중단
             pyautogui.PAUSE = 0.01     # 각 동작 사이의 지연 시간
+            
+            # macOS에서 키보드 입력 안정성을 위한 설정
+            pyautogui.MINIMUM_DURATION = 0.1  # 최소 키 입력 지속 시간
+            pyautogui.MINIMUM_SLEEP = 0.1     # 최소 대기 시간
             
             # 이전 손바닥 위치 저장 (상대적 이동을 위해)
             self.prev_palm_x = None
@@ -47,6 +59,12 @@ class MouseController:
             
             # 초기화 플래그
             self.is_initialized = False
+            
+            # 제스처 모드 관련 속성들
+            self.gesture_history = []
+            self.current_gesture_mode = "stop"
+            self.mode_start_time = time.time()
+            self.is_mode_stable = False
             
             # 마우스 상태
             self.current_state = MouseState(
@@ -72,7 +90,7 @@ class MouseController:
         
         Args:
             palm_center: 손바닥 중심점 [x, y, z]
-            gesture_mode: 제스처 모드 ("click", "scroll", "swipe", "stop")
+            gesture_mode: 제스처 모드 ("click", "stop", "scroll", "swipe", "move")
             smoothing: 스무딩 팩터 (0.0 ~ 1.0)
         """
         try:
@@ -98,8 +116,11 @@ class MouseController:
             delta_x = current_palm_x - self.prev_palm_x
             delta_y = current_palm_y - self.prev_palm_y
             
-            # 정지, 스크롤, 스와이프 모드면 마우스 이동 안함 (하지만 이전 위치는 업데이트)
-            if gesture_mode in ["stop", "scroll", "swipe"]:
+            # 현재 시간 가져오기
+            current_time = time.time()
+            
+            # 이동 모드가 아니면 마우스 이동 안함
+            if gesture_mode != "move":
                 logger.debug(f"{gesture_mode} 모드 - 마우스 이동 중단")
                 # 이전 손바닥 위치 업데이트 (중요!)
                 self.prev_palm_x = current_palm_x
@@ -110,16 +131,29 @@ class MouseController:
             smoothed_delta_x = delta_x * smoothing
             smoothed_delta_y = delta_y * smoothing
             
-            # 마우스 감도 적용
-            sensitivity = config.gesture.sensitivity
+            # 실제 웹캠 해상도 기반 1:1 비례 감도 계산
+            if self.hand_tracker:
+                camera_width, camera_height = self.hand_tracker.get_actual_camera_resolution()
+            else:
+                camera_width = config.camera.width
+                camera_height = config.camera.height
+            
+            # 웹캠에서 1cm 이동할 때 화면에서도 같은 비율로 이동하도록 감도 계산
+            # 웹캠 좌표 (0~1)를 화면 좌표로 매핑할 때 비율 유지
+            auto_sensitivity_x = self.screen_width / camera_width
+            auto_sensitivity_y = self.screen_height / camera_height
+            
+            # 사용자 설정 감도와 자동 계산 감도를 곱함
+            final_sensitivity_x = auto_sensitivity_x * config.gesture.sensitivity
+            final_sensitivity_y = auto_sensitivity_y * config.gesture.sensitivity
             
             # 화면 크기에 비례한 이동량 계산
-            move_x = int(smoothed_delta_x * self.screen_width * sensitivity)
-            move_y = int(smoothed_delta_y * self.screen_height * sensitivity)
+            move_x = int(smoothed_delta_x * self.screen_width * final_sensitivity_x)
+            move_y = int(smoothed_delta_y * self.screen_height * final_sensitivity_y)
             
             # 감도 디버그 로그 (주기적으로 출력)
             if abs(move_x) > 0 or abs(move_y) > 0:
-                logger.debug(f"감도 적용: delta=({delta_x:.3f}, {delta_y:.3f}), sensitivity={sensitivity:.2f}, move=({move_x}, {move_y})")
+                logger.debug(f"감도 적용: delta=({delta_x:.3f}, {delta_y:.3f}), auto_sensitivity=({auto_sensitivity_x:.2f}, {auto_sensitivity_y:.2f}), user_sensitivity={config.gesture.sensitivity:.2f}, move=({move_x}, {move_y})")
             
             # 현재 마우스 위치 가져오기
             current_mouse_x, current_mouse_y = pyautogui.position()
@@ -206,27 +240,29 @@ class MouseController:
     
     def handle_scroll(self, is_scrolling: bool, scroll_direction: str) -> None:
         """
-        스크롤 제스처 처리
+        스크롤 제스처 처리 (더 매끄럽게)
         
         Args:
             is_scrolling: 스크롤 상태
             scroll_direction: 스크롤 방향 ("up", "down", "left", "right")
         """
         try:
-            if is_scrolling and not self.current_state.is_scrolling:
-                # 스크롤 방향에 따라 스크롤 실행
+            if is_scrolling:
+                # 스크롤 방향에 따라 스크롤 실행 (더 부드럽게)
+                scroll_amount = 2  # 더 작은 스크롤 양
+                
                 if scroll_direction == "up":
-                    pyautogui.scroll(3)  # 위로 스크롤
-                    logger.info("위로 스크롤")
+                    pyautogui.scroll(scroll_amount)  # 위로 스크롤
+                    logger.debug("위로 스크롤")
                 elif scroll_direction == "down":
-                    pyautogui.scroll(-3)  # 아래로 스크롤
-                    logger.info("아래로 스크롤")
+                    pyautogui.scroll(-scroll_amount)  # 아래로 스크롤
+                    logger.debug("아래로 스크롤")
                 elif scroll_direction == "left":
-                    pyautogui.hscroll(-3)  # 왼쪽으로 스크롤
-                    logger.info("왼쪽으로 스크롤")
+                    pyautogui.hscroll(-scroll_amount)  # 왼쪽으로 스크롤
+                    logger.debug("왼쪽으로 스크롤")
                 elif scroll_direction == "right":
-                    pyautogui.hscroll(3)  # 오른쪽으로 스크롤
-                    logger.info("오른쪽으로 스크롤")
+                    pyautogui.hscroll(scroll_amount)  # 오른쪽으로 스크롤
+                    logger.debug("오른쪽으로 스크롤")
                 
                 self.current_state.is_scrolling = True
                 self.current_state.scroll_direction = scroll_direction
@@ -248,15 +284,41 @@ class MouseController:
         """
         try:
             if is_swiping and not self.current_state.is_swiping:
-                # 맥북 데스크탑 전환 단축키
+                # 맥북 데스크탑 전환 단축키 (개별 키 입력으로 변경)
                 if swipe_direction == "left":
                     # 왼쪽으로 스와이프: 다음 데스크탑
-                    pyautogui.hotkey('ctrl', 'right')
-                    logger.info(f"스와이프 왼쪽 - 다음 데스크탑으로 이동")
+                    try:
+                        pyautogui.keyDown('ctrl')
+                        time.sleep(0.15)  # 더 긴 지연
+                        pyautogui.press('right')
+                        time.sleep(0.15)  # 더 긴 지연
+                        pyautogui.keyUp('ctrl')
+                        logger.info(f"스와이프 왼쪽 - 다음 데스크탑으로 이동 (성공)")
+                    except Exception as e:
+                        logger.error(f"스와이프 왼쪽 실패: {e}")
+                        # 대체 방법 시도
+                        try:
+                            pyautogui.hotkey('ctrl', 'right')
+                            logger.info(f"스와이프 왼쪽 - 대체 방법으로 성공")
+                        except Exception as e2:
+                            logger.error(f"스와이프 왼쪽 대체 방법도 실패: {e2}")
                 elif swipe_direction == "right":
                     # 오른쪽으로 스와이프: 이전 데스크탑
-                    pyautogui.hotkey('ctrl', 'left')
-                    logger.info(f"스와이프 오른쪽 - 이전 데스크탑으로 이동")
+                    try:
+                        pyautogui.keyDown('ctrl')
+                        time.sleep(0.15)  # 더 긴 지연
+                        pyautogui.press('left')
+                        time.sleep(0.15)  # 더 긴 지연
+                        pyautogui.keyUp('ctrl')
+                        logger.info(f"스와이프 오른쪽 - 이전 데스크탑으로 이동 (성공)")
+                    except Exception as e:
+                        logger.error(f"스와이프 오른쪽 실패: {e}")
+                        # 대체 방법 시도
+                        try:
+                            pyautogui.hotkey('ctrl', 'left')
+                            logger.info(f"스와이프 오른쪽 - 대체 방법으로 성공")
+                        except Exception as e2:
+                            logger.error(f"스와이프 오른쪽 대체 방법도 실패: {e2}")
                 
                 self.current_state.is_swiping = True
                 self.current_state.swipe_direction = swipe_direction

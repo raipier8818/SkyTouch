@@ -29,18 +29,36 @@ class HandTrackingConfig:
 @dataclass
 class GestureConfig:
     """제스처 설정"""
-    click_threshold: float = 0.08
-
+    # 클릭 모드 설정
+    click_threshold: float = 0.12  # 클릭 감지 임계값 (더 큰 값으로 조정)
+    
+    # 스크롤 모드 설정
+    scroll_distance_threshold: float = 0.003  # 스크롤 감지 최소 거리
+    scroll_required_frames: int = 1  # 스크롤 감지에 필요한 연속 프레임 수
+    
+    # 스와이프 모드 설정
+    swipe_distance_threshold: float = 0.008  # 스와이프 감지 최소 거리
+    swipe_required_frames: int = 3  # 스와이프 감지에 필요한 연속 프레임 수
+    swipe_cooldown: float = 1.5  # 스와이프 쿨타임 (초)
+    
+    # 손가락 감지 설정
+    finger_threshold: float = 0.02  # 손가락 펴짐/접힘 감지 임계값
+    
+    # 기존 설정 (호환성 유지)
     swipe_threshold: float = 0.03  # 스와이프 임계값 (더 낮춤)
     swipe_time_limit: float = 1.0  # 스와이프 시간 제한 (초)
-    swipe_cooldown: float = 1.5  # 스와이프 쿨타임 (초)
-    mode_stabilization_time: float = 0.8  # 모드 안정화 시간 (초)
+    mode_stabilization_time: float = 0.2  # 모드 안정화 시간 (초) - 더 빠른 모드 변경을 위해 단축
     scroll_threshold: float = 0.1  # 스크롤 임계값
     smoothing_factor: float = 0.5
     sensitivity: float = 1.0
 
+    # 마우스 반전 설정
     invert_x: bool = False  # X축 좌우 반전
     invert_y: bool = False  # Y축 상하 반전
+    invert_scroll_x: bool = False  # 스크롤 X축 반전
+    invert_scroll_y: bool = False  # 스크롤 Y축 반전
+    invert_swipe_x: bool = False  # 스와이프 X축 반전
+    invert_swipe_y: bool = False  # 스와이프 Y축 반전
 
 
 @dataclass

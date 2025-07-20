@@ -159,7 +159,10 @@ class MainWindow:
         info_text = """• 손바닥을 움직여 마우스 커서 이동
 
 제스처 모드:
-• 클릭 모드: 검지만 펴진 상태
+• 이동 모드: 검지만 펴진 상태
+  - 손을 움직여 마우스 커서 이동
+
+• 클릭 모드: 모든 손가락이 펴진 상태
   - 엄지와 검지를 붙임 → 클릭
   - 엄지와 중지를 붙임 → 우클릭
 
@@ -202,11 +205,12 @@ class MainWindow:
     def open_settings(self) -> None:
         """설정 창 열기"""
         try:
-            # 설정 창이 존재하지 않거나 이미 종료된 경우 새로 생성
-            if not hasattr(self, 'settings_window') or not self.settings_window or not self.settings_window.settings_window.winfo_exists():
+            # 설정 창이 존재하지 않으면 새로 생성
+            if not hasattr(self, 'settings_window') or not self.settings_window:
                 self.settings_window = SettingsWindow(self.root, on_settings_changed=self.on_settings_changed)
-            else:
-                self.settings_window.show()
+            
+            # show() 메서드에서 안전한 체크를 수행하므로 단순히 호출
+            self.settings_window.show()
             
             logger.info("설정 창이 열렸습니다.")
             

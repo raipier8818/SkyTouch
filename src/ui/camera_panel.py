@@ -317,13 +317,19 @@ class CameraPanel(ttk.LabelFrame):
     def update_config(self) -> None:
         """설정 업데이트"""
         try:
-            # 카메라 설정 업데이트
-            if hasattr(self, 'cap') and self.cap.isOpened():
+            # 설정값은 항상 업데이트 (카메라 상태와 관계없이)
+            logger.info("카메라 패널 설정이 업데이트되었습니다.")
+            
+            # 카메라가 열려있을 때만 카메라 하드웨어 설정 업데이트
+            if (hasattr(self, 'cap') and 
+                self.cap is not None and 
+                hasattr(self.cap, 'isOpened') and 
+                self.cap.isOpened()):
+                
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera.width)
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera.height)
                 self.cap.set(cv2.CAP_PROP_FPS, config.camera.fps)
-            
-            logger.info("카메라 패널 설정이 업데이트되었습니다.")
+                logger.debug("카메라 하드웨어 설정이 업데이트되었습니다.")
             
         except Exception as e:
             logger.error(f"카메라 패널 설정 업데이트 실패: {e}") 

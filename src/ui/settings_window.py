@@ -84,8 +84,13 @@ class SettingsWindow:
                                font=('Arial', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
-        # 제스처 설정 섹션
-        self.create_gesture_settings(scrollable_frame)
+        # 모드별 설정 섹션들
+        self.create_click_settings(scrollable_frame)
+        self.create_stop_settings(scrollable_frame)
+        self.create_swipe_settings(scrollable_frame)
+        self.create_scroll_settings(scrollable_frame)
+        self.create_move_settings(scrollable_frame)
+        self.create_invert_settings(scrollable_frame)
         
         # 카메라 설정 섹션
         self.create_camera_settings(scrollable_frame)
@@ -109,15 +114,53 @@ class SettingsWindow:
         self.settings_window.columnconfigure(0, weight=1)
         self.settings_window.rowconfigure(0, weight=1)
         
-        # 마우스 휠 스크롤 바인딩
-        def _on_mousewheel(event):
+        # macOS와 Windows 모두 지원하는 마우스 휠 바인딩
+        def _on_mousewheel_all(event):
+            """모든 위젯에서 마우스 휠 이벤트 처리"""
             try:
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                # macOS와 Windows 모두 지원
+                if hasattr(event, 'delta') and event.delta:
+                    # Windows
+                    delta = int(-1 * (event.delta / 120))
+                else:
+                    # macOS
+                    delta = int(-1 * event.delta)
+                
+                canvas.yview_scroll(delta, "units")
             except tk.TclError:
                 # 캔버스가 이미 파괴된 경우 무시
                 pass
         
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # 전체 창에 마우스 휠 바인딩
+        self.settings_window.bind_all("<MouseWheel>", _on_mousewheel_all)
+        self.settings_window.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux 위로
+        self.settings_window.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))   # Linux 아래로
+        
+        # 스크롤 가능한 프레임에도 바인딩
+        scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel_all)
+        scrollable_frame.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        scrollable_frame.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+        
+        # 모든 자식 위젯에도 마우스 휠 이벤트 전파
+        def _propagate_mousewheel(event):
+            """마우스 휠 이벤트를 부모로 전파"""
+            _on_mousewheel_all(event)
+            return "break"  # 이벤트 전파 중단
+        
+        # 스크롤 가능한 프레임의 모든 자식 위젯에 바인딩
+        def _bind_mousewheel_to_children(parent):
+            """재귀적으로 모든 자식 위젯에 마우스 휠 바인딩"""
+            for child in parent.winfo_children():
+                try:
+                    child.bind("<MouseWheel>", _propagate_mousewheel)
+                    child.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+                    child.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+                    # 재귀적으로 자식의 자식들도 바인딩
+                    _bind_mousewheel_to_children(child)
+                except:
+                    pass  # 바인딩할 수 없는 위젯은 무시
+        
+        _bind_mousewheel_to_children(scrollable_frame)
         
         # 스크롤바가 필요할 때만 표시
         def _configure_scroll_region(event):
@@ -125,17 +168,171 @@ class SettingsWindow:
         
         scrollable_frame.bind("<Configure>", _configure_scroll_region)
     
-    def create_gesture_settings(self, parent) -> None:
-        """제스처 설정 섹션 생성"""
-        gesture_frame = ttk.LabelFrame(parent, text="제스처 설정", padding="15")
-        gesture_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+    def create_click_settings(self, parent) -> None:
+        """클릭 모드 설정 섹션 생성"""
+        click_frame = ttk.LabelFrame(parent, text="클릭 모드 설정", padding="15")
+        click_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # 클릭 임계값 설정
+        ttk.Label(click_frame, text="클릭 임계값:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.click_threshold_var = tk.DoubleVar(value=config.gesture.click_threshold)
+        self.click_threshold_scale = ttk.Scale(
+            click_frame,
+            from_=0.01,
+            to=0.2,
+            orient=tk.HORIZONTAL,
+            variable=self.click_threshold_var,
+            command=self.on_click_threshold_change
+        )
+        self.click_threshold_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.click_threshold_label = ttk.Label(click_frame, text=f"{config.gesture.click_threshold:.2f}")
+        self.click_threshold_label.grid(row=0, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 손가락 감지 임계값 설정
+        ttk.Label(click_frame, text="손가락 감지 임계값:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.finger_threshold_var = tk.DoubleVar(value=config.gesture.finger_threshold)
+        self.finger_threshold_scale = ttk.Scale(
+            click_frame,
+            from_=0.001,
+            to=0.05,
+            orient=tk.HORIZONTAL,
+            variable=self.finger_threshold_var,
+            command=self.on_finger_threshold_change
+        )
+        self.finger_threshold_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.finger_threshold_label = ttk.Label(click_frame, text=f"{config.gesture.finger_threshold:.3f}")
+        self.finger_threshold_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
+        
+        click_frame.columnconfigure(1, weight=1)
+    
+    def create_stop_settings(self, parent) -> None:
+        """정지 모드 설정 섹션 생성"""
+        stop_frame = ttk.LabelFrame(parent, text="정지 모드 설정", padding="15")
+        stop_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # 정지 모드 설명
+        ttk.Label(stop_frame, text="모든 손가락을 편 상태에서 정지합니다.", 
+                 font=("", 9), foreground="gray").grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
+        
+        # 그리드 가중치 설정
+        stop_frame.columnconfigure(1, weight=1)
+    
+    def create_swipe_settings(self, parent) -> None:
+        """스와이프 모드 설정 섹션 생성"""
+        swipe_frame = ttk.LabelFrame(parent, text="스와이프 모드 설정", padding="15")
+        swipe_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # 스와이프 거리 임계값 설정
+        ttk.Label(swipe_frame, text="스와이프 거리 임계값:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.swipe_distance_threshold_var = tk.DoubleVar(value=config.gesture.swipe_distance_threshold)
+        self.swipe_distance_threshold_scale = ttk.Scale(
+            swipe_frame, 
+            from_=0.005, 
+            to=0.02, 
+            variable=self.swipe_distance_threshold_var, 
+            orient=tk.HORIZONTAL,
+            command=self.on_swipe_distance_threshold_change
+        )
+        self.swipe_distance_threshold_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.swipe_distance_threshold_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_distance_threshold:.3f}")
+        self.swipe_distance_threshold_label.grid(row=0, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 스와이프 필요 프레임 수 설정
+        ttk.Label(swipe_frame, text="스와이프 필요 프레임 수:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.swipe_required_frames_var = tk.IntVar(value=config.gesture.swipe_required_frames)
+        self.swipe_required_frames_scale = ttk.Scale(
+            swipe_frame, 
+            from_=2, 
+            to=6, 
+            variable=self.swipe_required_frames_var, 
+            orient=tk.HORIZONTAL,
+            command=self.on_swipe_required_frames_change
+        )
+        self.swipe_required_frames_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.swipe_required_frames_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_required_frames}")
+        self.swipe_required_frames_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 스와이프 쿨타임 설정
+        ttk.Label(swipe_frame, text="스와이프 쿨타임:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.swipe_cooldown_var = tk.DoubleVar(value=config.gesture.swipe_cooldown)
+        self.swipe_cooldown_scale = ttk.Scale(
+            swipe_frame, 
+            from_=0.5, 
+            to=3.0, 
+            variable=self.swipe_cooldown_var, 
+            orient=tk.HORIZONTAL,
+            command=self.on_swipe_cooldown_change
+        )
+        self.swipe_cooldown_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.swipe_cooldown_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_cooldown:.1f}초")
+        self.swipe_cooldown_label.grid(row=2, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 그리드 가중치 설정
+        swipe_frame.columnconfigure(1, weight=1)
+    
+    def create_scroll_settings(self, parent) -> None:
+        """스크롤 모드 설정 섹션 생성"""
+        scroll_frame = ttk.LabelFrame(parent, text="스크롤 모드 설정", padding="15")
+        scroll_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # 스크롤 거리 임계값 설정
+        ttk.Label(scroll_frame, text="스크롤 거리 임계값:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.scroll_distance_threshold_var = tk.DoubleVar(value=config.gesture.scroll_distance_threshold)
+        self.scroll_distance_threshold_scale = ttk.Scale(
+            scroll_frame, 
+            from_=0.001, 
+            to=0.01, 
+            variable=self.scroll_distance_threshold_var, 
+            orient=tk.HORIZONTAL,
+            command=self.on_scroll_distance_threshold_change
+        )
+        self.scroll_distance_threshold_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.scroll_distance_threshold_label = ttk.Label(scroll_frame, text=f"{config.gesture.scroll_distance_threshold:.3f}")
+        self.scroll_distance_threshold_label.grid(row=0, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 스크롤 필요 프레임 수 설정
+        ttk.Label(scroll_frame, text="스크롤 필요 프레임 수:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.scroll_required_frames_var = tk.IntVar(value=config.gesture.scroll_required_frames)
+        self.scroll_required_frames_scale = ttk.Scale(
+            scroll_frame, 
+            from_=1, 
+            to=5, 
+            variable=self.scroll_required_frames_var, 
+            orient=tk.HORIZONTAL,
+            command=self.on_scroll_required_frames_change
+        )
+        self.scroll_required_frames_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.scroll_required_frames_label = ttk.Label(scroll_frame, text=f"{config.gesture.scroll_required_frames}")
+        self.scroll_required_frames_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
+        
+        # 그리드 가중치 설정
+        scroll_frame.columnconfigure(1, weight=1)
+    
+    def create_move_settings(self, parent) -> None:
+        """이동 모드 설정 섹션 생성"""
+        move_frame = ttk.LabelFrame(parent, text="이동 모드 설정", padding="15")
+        move_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 감도 설정
-        ttk.Label(gesture_frame, text="감도:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(move_frame, text="감도:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
         self.sensitivity_var = tk.DoubleVar(value=config.gesture.sensitivity)
         self.sensitivity_scale = ttk.Scale(
-            gesture_frame, 
+            move_frame, 
             from_=0.1, 
             to=3.0, 
             variable=self.sensitivity_var, 
@@ -144,15 +341,15 @@ class SettingsWindow:
         )
         self.sensitivity_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
-        self.sensitivity_label = ttk.Label(gesture_frame, text=f"{config.gesture.sensitivity:.1f}")
+        self.sensitivity_label = ttk.Label(move_frame, text=f"{config.gesture.sensitivity:.1f}")
         self.sensitivity_label.grid(row=0, column=2, padx=(5, 0), pady=(0, 5))
         
         # 스무딩 설정
-        ttk.Label(gesture_frame, text="스무딩:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(move_frame, text="스무딩:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
         
         self.smoothing_var = tk.DoubleVar(value=config.gesture.smoothing_factor)
         self.smoothing_scale = ttk.Scale(
-            gesture_frame, 
+            move_frame, 
             from_=0.0, 
             to=1.0, 
             variable=self.smoothing_var, 
@@ -161,111 +358,71 @@ class SettingsWindow:
         )
         self.smoothing_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
-        self.smoothing_label = ttk.Label(gesture_frame, text=f"{config.gesture.smoothing_factor:.1f}")
+        self.smoothing_label = ttk.Label(move_frame, text=f"{config.gesture.smoothing_factor:.1f}")
         self.smoothing_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
         
-        # 클릭 임계값 설정
-        ttk.Label(gesture_frame, text="클릭 임계값:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        # 그리드 가중치 설정
+        move_frame.columnconfigure(1, weight=1)
+    
+    def create_invert_settings(self, parent) -> None:
+        """반전 설정 섹션 생성"""
+        invert_frame = ttk.LabelFrame(parent, text="반전 설정", padding="15")
+        invert_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        self.click_threshold_var = tk.DoubleVar(value=config.gesture.click_threshold)
-        self.click_threshold_scale = ttk.Scale(
-            gesture_frame, 
-            from_=0.01, 
-            to=0.2, 
-            variable=self.click_threshold_var, 
-            orient=tk.HORIZONTAL,
-            command=self.on_click_threshold_change
-        )
-        self.click_threshold_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        # 마우스 이동 반전
+        ttk.Label(invert_frame, text="마우스 이동:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.click_threshold_label = ttk.Label(gesture_frame, text=f"{config.gesture.click_threshold:.2f}")
-        self.click_threshold_label.grid(row=2, column=2, padx=(5, 0), pady=(0, 5))
+        mouse_invert_frame = ttk.Frame(invert_frame)
+        mouse_invert_frame.grid(row=0, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
-
-        
-        # 스크롤 임계값 설정
-        ttk.Label(gesture_frame, text="스크롤 임계값:").grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
-        
-        self.scroll_threshold_var = tk.DoubleVar(value=config.gesture.scroll_threshold)
-        self.scroll_threshold_scale = ttk.Scale(
-            gesture_frame, 
-            from_=0.05, 
-            to=0.3, 
-            variable=self.scroll_threshold_var, 
-            orient=tk.HORIZONTAL,
-            command=self.on_scroll_threshold_change
-        )
-        self.scroll_threshold_scale.grid(row=3, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
-        
-        self.scroll_threshold_label = ttk.Label(gesture_frame, text=f"{config.gesture.scroll_threshold:.2f}")
-        self.scroll_threshold_label.grid(row=3, column=2, padx=(5, 0), pady=(0, 5))
-        
-        # 스와이프 임계값 설정
-        ttk.Label(gesture_frame, text="스와이프 임계값:").grid(row=4, column=0, sticky=tk.W, pady=(0, 5))
-        
-        self.swipe_threshold_var = tk.DoubleVar(value=config.gesture.swipe_threshold)
-        self.swipe_threshold_scale = ttk.Scale(
-            gesture_frame, 
-            from_=0.1, 
-            to=0.5, 
-            variable=self.swipe_threshold_var, 
-            orient=tk.HORIZONTAL,
-            command=self.on_swipe_threshold_change
-        )
-        self.swipe_threshold_scale.grid(row=4, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
-        
-        self.swipe_threshold_label = ttk.Label(gesture_frame, text=f"{config.gesture.swipe_threshold:.2f}")
-        self.swipe_threshold_label.grid(row=4, column=2, padx=(5, 0), pady=(0, 5))
-        
-        # 스와이프 시간 제한 설정
-        ttk.Label(gesture_frame, text="스와이프 시간 제한:").grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
-        
-        self.swipe_time_limit_var = tk.DoubleVar(value=config.gesture.swipe_time_limit)
-        self.swipe_time_limit_scale = ttk.Scale(
-            gesture_frame, 
-            from_=0.5, 
-            to=5.0, 
-            variable=self.swipe_time_limit_var, 
-            orient=tk.HORIZONTAL,
-            command=self.on_swipe_time_limit_change
-        )
-        self.swipe_time_limit_scale.grid(row=5, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
-        
-        self.swipe_time_limit_label = ttk.Label(gesture_frame, text=f"{config.gesture.swipe_time_limit:.1f}초")
-        self.swipe_time_limit_label.grid(row=5, column=2, padx=(5, 0), pady=(0, 5))
-        
-        # 마우스 반전 설정
-        ttk.Label(gesture_frame, text="마우스 반전:").grid(row=6, column=0, sticky=tk.W, pady=(10, 5))
-        
-        # 반전 설정 프레임
-        invert_frame = ttk.Frame(gesture_frame)
-        invert_frame.grid(row=6, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(10, 0), pady=(10, 5))
-        
-        # X축 좌우 반전
         self.invert_x_var = tk.BooleanVar(value=config.gesture.invert_x)
-        invert_x_check = ttk.Checkbutton(
-            invert_frame, 
-            text="좌우 반전 (X축)", 
-            variable=self.invert_x_var
-        )
+        invert_x_check = ttk.Checkbutton(mouse_invert_frame, text="좌우 반전 (X축)", variable=self.invert_x_var)
         invert_x_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20))
         
-        # Y축 상하 반전
         self.invert_y_var = tk.BooleanVar(value=config.gesture.invert_y)
-        invert_y_check = ttk.Checkbutton(
-            invert_frame, 
-            text="상하 반전 (Y축)", 
-            variable=self.invert_y_var
-        )
+        invert_y_check = ttk.Checkbutton(mouse_invert_frame, text="상하 반전 (Y축)", variable=self.invert_y_var)
         invert_y_check.grid(row=0, column=1, sticky=tk.W)
         
+        # 스크롤 반전
+        ttk.Label(invert_frame, text="스크롤:").grid(row=1, column=0, sticky=tk.W, pady=(10, 5))
+        
+        scroll_invert_frame = ttk.Frame(invert_frame)
+        scroll_invert_frame.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(10, 0), pady=(10, 5))
+        
+        self.invert_scroll_x_var = tk.BooleanVar(value=config.gesture.invert_scroll_x)
+        invert_scroll_x_check = ttk.Checkbutton(scroll_invert_frame, text="좌우 반전 (X축)", variable=self.invert_scroll_x_var)
+        invert_scroll_x_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20))
+        
+        self.invert_scroll_y_var = tk.BooleanVar(value=config.gesture.invert_scroll_y)
+        invert_scroll_y_check = ttk.Checkbutton(scroll_invert_frame, text="상하 반전 (Y축)", variable=self.invert_scroll_y_var)
+        invert_scroll_y_check.grid(row=0, column=1, sticky=tk.W)
+        
+        # 스와이프 반전
+        ttk.Label(invert_frame, text="스와이프:").grid(row=2, column=0, sticky=tk.W, pady=(10, 5))
+        
+        swipe_invert_frame = ttk.Frame(invert_frame)
+        swipe_invert_frame.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(10, 0), pady=(10, 5))
+        
+        self.invert_swipe_x_var = tk.BooleanVar(value=config.gesture.invert_swipe_x)
+        invert_swipe_x_check = ttk.Checkbutton(swipe_invert_frame, text="좌우 반전 (X축)", variable=self.invert_swipe_x_var)
+        invert_swipe_x_check.grid(row=0, column=0, sticky=tk.W, padx=(0, 20))
+        
+        self.invert_swipe_y_var = tk.BooleanVar(value=config.gesture.invert_swipe_y)
+        invert_swipe_y_check = ttk.Checkbutton(swipe_invert_frame, text="상하 반전 (Y축)", variable=self.invert_swipe_y_var)
+        invert_swipe_y_check.grid(row=0, column=1, sticky=tk.W)
+        
         # 그리드 가중치 설정
-        gesture_frame.columnconfigure(1, weight=1)
+        invert_frame.columnconfigure(1, weight=1)
+    
+    def create_gesture_settings(self, parent) -> None:
+        """제스처 설정 섹션 생성 (기존 함수 - 호환성 유지)"""
+        # 이 함수는 더 이상 사용하지 않지만 호환성을 위해 유지
+        pass
     
     def create_camera_settings(self, parent) -> None:
         """카메라 설정 섹션 생성"""
         camera_frame = ttk.LabelFrame(parent, text="카메라 설정", padding="15")
-        camera_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        camera_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))  # row 인덱스 수정
         
         # 카메라 해상도 설정
         ttk.Label(camera_frame, text="카메라 해상도:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
@@ -298,7 +455,7 @@ class SettingsWindow:
     def create_tracking_settings(self, parent) -> None:
         """손 트래킹 설정 섹션 생성"""
         tracking_frame = ttk.LabelFrame(parent, text="손 트래킹 설정", padding="15")
-        tracking_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        tracking_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 최대 손 개수
         ttk.Label(tracking_frame, text="최대 손 개수:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
@@ -344,7 +501,7 @@ class SettingsWindow:
     def create_debug_settings(self, parent) -> None:
         """디버그 설정 섹션 생성"""
         debug_frame = ttk.LabelFrame(parent, text="디버그 설정", padding="15")
-        debug_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        debug_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 디버그 모드 체크박스
         self.debug_mode_var = tk.BooleanVar(value=config.ui.debug_mode)
@@ -370,7 +527,7 @@ class SettingsWindow:
     def create_buttons(self, parent) -> None:
         """버튼 프레임 생성"""
         button_frame = ttk.Frame(parent)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=(20, 0))
+        button_frame.grid(row=9, column=0, columnspan=2, pady=(20, 0))
         
         # 적용 버튼
         apply_button = ttk.Button(button_frame, text="적용", command=self.apply_settings)
@@ -402,28 +559,43 @@ class SettingsWindow:
         config.gesture.smoothing_factor = smoothing
         logger.debug(f"스무딩 실시간 적용: {smoothing}")
     
-
-    
     def on_click_threshold_change(self, value) -> None:
         """클릭 임계값 변경 콜백"""
         self.click_threshold_label.config(text=f"{float(value):.2f}")
     
-    def on_scroll_threshold_change(self, value) -> None:
-        """스크롤 임계값 변경 콜백"""
-        self.scroll_threshold_label.config(text=f"{float(value):.2f}")
+    def on_finger_threshold_change(self, value) -> None:
+        """손가락 감지 임계값 변경 콜백"""
+        threshold = float(value)
+        self.finger_threshold_label.config(text=f"{threshold:.3f}")
     
-    def on_swipe_threshold_change(self, value) -> None:
-        """스와이프 임계값 변경 콜백"""
-        self.swipe_threshold_label.config(text=f"{float(value):.2f}")
+    def on_scroll_distance_threshold_change(self, value) -> None:
+        """스크롤 거리 임계값 변경 콜백"""
+        threshold = float(value)
+        self.scroll_distance_threshold_label.config(text=f"{threshold:.3f}")
     
-    def on_swipe_time_limit_change(self, value) -> None:
-        """스와이프 시간 제한 변경 콜백"""
-        time_limit = float(value)
-        self.swipe_time_limit_label.config(text=f"{time_limit:.1f}초")
+    def on_scroll_required_frames_change(self, value) -> None:
+        """스크롤 필요 프레임 수 변경 콜백"""
+        frames = int(float(value))
+        self.scroll_required_frames_label.config(text=f"{frames}")
+    
+    def on_swipe_distance_threshold_change(self, value) -> None:
+        """스와이프 거리 임계값 변경 콜백"""
+        threshold = float(value)
+        self.swipe_distance_threshold_label.config(text=f"{threshold:.3f}")
+    
+    def on_swipe_required_frames_change(self, value) -> None:
+        """스와이프 필요 프레임 수 변경 콜백"""
+        frames = int(float(value))
+        self.swipe_required_frames_label.config(text=f"{frames}")
+    
+    def on_swipe_cooldown_change(self, value) -> None:
+        """스와이프 쿨타임 변경 콜백"""
+        cooldown = float(value)
+        self.swipe_cooldown_label.config(text=f"{cooldown:.1f}초")
         
-        # 실시간으로 시간 제한 적용
-        config.gesture.swipe_time_limit = time_limit
-        logger.debug(f"스와이프 시간 제한 실시간 적용: {time_limit}초")
+        # 실시간으로 쿨타임 적용
+        config.gesture.swipe_cooldown = cooldown
+        logger.debug(f"스와이프 쿨타임 실시간 적용: {cooldown}초")
     
     def apply_settings(self) -> None:
         """설정 적용"""
@@ -431,13 +603,21 @@ class SettingsWindow:
             # 제스처 설정 업데이트
             config.gesture.sensitivity = self.sensitivity_var.get()
             config.gesture.smoothing_factor = self.smoothing_var.get()
-
             config.gesture.click_threshold = self.click_threshold_var.get()
-            config.gesture.scroll_threshold = self.scroll_threshold_var.get()
-            config.gesture.swipe_threshold = self.swipe_threshold_var.get()
-            config.gesture.swipe_time_limit = self.swipe_time_limit_var.get()
+            config.gesture.finger_threshold = self.finger_threshold_var.get()
+            config.gesture.scroll_distance_threshold = self.scroll_distance_threshold_var.get()
+            config.gesture.scroll_required_frames = self.scroll_required_frames_var.get()
+            config.gesture.swipe_distance_threshold = self.swipe_distance_threshold_var.get()
+            config.gesture.swipe_required_frames = self.swipe_required_frames_var.get()
+            config.gesture.swipe_cooldown = self.swipe_cooldown_var.get()
+            
+            # 반전 설정 적용
             config.gesture.invert_x = self.invert_x_var.get()
             config.gesture.invert_y = self.invert_y_var.get()
+            config.gesture.invert_scroll_x = self.invert_scroll_x_var.get()
+            config.gesture.invert_scroll_y = self.invert_scroll_y_var.get()
+            config.gesture.invert_swipe_x = self.invert_swipe_x_var.get()
+            config.gesture.invert_swipe_y = self.invert_swipe_y_var.get()
             
             # 카메라 설정 업데이트
             resolution = self.resolution_var.get().split('x')
@@ -475,26 +655,42 @@ class SettingsWindow:
             self.smoothing_var.set(0.5)
 
             self.click_threshold_var.set(0.05)
-            self.scroll_threshold_var.set(0.1)
-            self.swipe_threshold_var.set(0.3)
-            self.swipe_time_limit_var.set(2.0)
             self.resolution_var.set("640x480")
             self.fps_var.set(30)
             self.max_hands_var.set(1)
             self.detection_confidence_var.set(0.7)
             self.tracking_confidence_var.set(0.5)
             self.debug_mode_var.set(False)
+            # 반전 설정 기본값
             self.invert_x_var.set(False)
             self.invert_y_var.set(False)
+            self.invert_scroll_x_var.set(False)
+            self.invert_scroll_y_var.set(False)
+            self.invert_swipe_x_var.set(False)
+            self.invert_swipe_y_var.set(False)
+            
+            # 새로운 설정들 기본값 설정
+            self.finger_threshold_var.set(0.02)
+            self.scroll_distance_threshold_var.set(0.003)
+            self.scroll_required_frames_var.set(1)
+            self.swipe_distance_threshold_var.set(0.008)
+            self.swipe_required_frames_var.set(3)
+            self.swipe_cooldown_var.set(1.5)
             
             # 라벨 업데이트
             self.sensitivity_label.config(text="1.0")
             self.smoothing_label.config(text="0.5")
 
             self.click_threshold_label.config(text="0.05")
-            self.scroll_threshold_label.config(text="0.10")
-            self.swipe_threshold_label.config(text="0.30")
-            self.swipe_time_limit_label.config(text="2.0초")
+            
+            # 새로운 라벨들 업데이트
+            self.finger_threshold_label.config(text="0.020")
+            self.scroll_distance_threshold_label.config(text="0.003")
+            self.scroll_required_frames_label.config(text="1")
+            self.swipe_distance_threshold_label.config(text="0.008")
+            self.swipe_required_frames_label.config(text="3")
+            self.swipe_cooldown_label.config(text="1.5초")
+
             
             messagebox.showinfo("성공", "기본값으로 복원되었습니다.")
             logger.info("설정이 기본값으로 복원되었습니다.")
@@ -506,11 +702,14 @@ class SettingsWindow:
     def on_closing(self) -> None:
         """창 종료 처리"""
         try:
+            if self.settings_window and self.settings_window.winfo_exists():
             # 마우스 휠 바인딩 해제
-            try:
-                self.settings_window.unbind_all("<MouseWheel>")
-            except:
-                pass
+                try:
+                    self.settings_window.unbind_all("<MouseWheel>")
+                    self.settings_window.unbind_all("<Button-4>")
+                    self.settings_window.unbind_all("<Button-5>")
+                except:
+                    pass
             
             self.settings_window.destroy()
             logger.info("설정 창이 종료되었습니다.")
@@ -522,5 +721,14 @@ class SettingsWindow:
     
     def show(self) -> None:
         """설정 창 표시"""
-        self.settings_window.deiconify()
-        self.settings_window.focus_set() 
+        try:
+            if self.settings_window and self.settings_window.winfo_exists():
+                self.settings_window.deiconify()
+                self.settings_window.focus_set() 
+            else:
+                # 창이 파괴되었거나 None인 경우 새로 생성
+                self.create_window()
+        except Exception as e:
+            logger.error(f"설정 창 표시 중 오류: {e}")
+            # 오류 발생 시 새로 생성
+            self.create_window() 

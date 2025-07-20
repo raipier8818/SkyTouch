@@ -58,7 +58,7 @@ class HandTrackpadApp:
     def initialize_components(self) -> None:
         """컴포넌트 초기화"""
         try:
-            # 마우스 컨트롤러 초기화
+            # 마우스 컨트롤러 초기화 (hand_tracker는 나중에 설정)
             self.mouse_controller = MouseController()
             
             # 메인 윈도우 초기화 (트래킹 콜백과 마우스 컨트롤러 전달)
@@ -77,6 +77,10 @@ class HandTrackpadApp:
             
             # 손 트래커 초기화 (카메라 없이)
             self.hand_tracker = HandTracker()
+            
+            # 마우스 컨트롤러에 hand_tracker 설정 (실제 웹캠 해상도 가져오기용)
+            self.mouse_controller.hand_tracker = self.hand_tracker
+            
             # 메인 윈도우에 손 트래커 전달
             self.main_window.hand_tracker = self.hand_tracker
             
