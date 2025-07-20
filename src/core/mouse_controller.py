@@ -276,49 +276,43 @@ class MouseController:
     
     def handle_swipe(self, is_swiping: bool, swipe_direction: str) -> None:
         """
-        스와이프 제스처 처리 (맥북 데스크탑 전환)
+        스와이프 제스처 처리 (맥북 데스크탑 전환 + 미션 컨트롤)
         
         Args:
             is_swiping: 스와이프 상태
-            swipe_direction: 스와이프 방향 ("left", "right")
+            swipe_direction: 스와이프 방향 ("left", "right", "up", "down")
         """
         try:
             if is_swiping and not self.current_state.is_swiping:
-                # 맥북 데스크탑 전환 단축키 (개별 키 입력으로 변경)
+                # 맥북 제스처 단축키 (time.sleep 제거하여 카메라 끊김 방지)
                 if swipe_direction == "left":
                     # 왼쪽으로 스와이프: 다음 데스크탑
                     try:
-                        pyautogui.keyDown('ctrl')
-                        time.sleep(0.15)  # 더 긴 지연
-                        pyautogui.press('right')
-                        time.sleep(0.15)  # 더 긴 지연
-                        pyautogui.keyUp('ctrl')
+                        pyautogui.hotkey('ctrl', 'right')
                         logger.info(f"스와이프 왼쪽 - 다음 데스크탑으로 이동 (성공)")
                     except Exception as e:
                         logger.error(f"스와이프 왼쪽 실패: {e}")
-                        # 대체 방법 시도
-                        try:
-                            pyautogui.hotkey('ctrl', 'right')
-                            logger.info(f"스와이프 왼쪽 - 대체 방법으로 성공")
-                        except Exception as e2:
-                            logger.error(f"스와이프 왼쪽 대체 방법도 실패: {e2}")
                 elif swipe_direction == "right":
                     # 오른쪽으로 스와이프: 이전 데스크탑
                     try:
-                        pyautogui.keyDown('ctrl')
-                        time.sleep(0.15)  # 더 긴 지연
-                        pyautogui.press('left')
-                        time.sleep(0.15)  # 더 긴 지연
-                        pyautogui.keyUp('ctrl')
+                        pyautogui.hotkey('ctrl', 'left')
                         logger.info(f"스와이프 오른쪽 - 이전 데스크탑으로 이동 (성공)")
                     except Exception as e:
                         logger.error(f"스와이프 오른쪽 실패: {e}")
-                        # 대체 방법 시도
-                        try:
-                            pyautogui.hotkey('ctrl', 'left')
-                            logger.info(f"스와이프 오른쪽 - 대체 방법으로 성공")
-                        except Exception as e2:
-                            logger.error(f"스와이프 오른쪽 대체 방법도 실패: {e2}")
+                elif swipe_direction == "up":
+                    # 위로 스와이프: 미션 컨트롤 시작
+                    try:
+                        pyautogui.hotkey('ctrl', 'up')
+                        logger.info(f"스와이프 위 - 미션 컨트롤 시작 (성공)")
+                    except Exception as e:
+                        logger.error(f"스와이프 위 실패: {e}")
+                elif swipe_direction == "down":
+                    # 아래로 스와이프: 미션 컨트롤 종료
+                    try:
+                        pyautogui.hotkey('ctrl', 'down')
+                        logger.info(f"스와이프 아래 - 미션 컨트롤 종료 (성공)")
+                    except Exception as e:
+                        logger.error(f"스와이프 아래 실패: {e}")
                 
                 self.current_state.is_swiping = True
                 self.current_state.swipe_direction = swipe_direction

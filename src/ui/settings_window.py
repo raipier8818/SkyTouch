@@ -226,8 +226,12 @@ class SettingsWindow:
         swipe_frame = ttk.LabelFrame(parent, text="스와이프 모드 설정", padding="15")
         swipe_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
+        # 스와이프 모드 설명
+        ttk.Label(swipe_frame, text="주먹을 쥐고 스와이프: 좌우=데스크탑 전환, 위아래=미션 컨트롤", 
+                 font=("", 9), foreground="gray").grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
+        
         # 스와이프 거리 임계값 설정
-        ttk.Label(swipe_frame, text="스와이프 거리 임계값:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(swipe_frame, text="스와이프 거리 임계값:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
         
         self.swipe_distance_threshold_var = tk.DoubleVar(value=config.gesture.swipe_distance_threshold)
         self.swipe_distance_threshold_scale = ttk.Scale(
@@ -238,13 +242,13 @@ class SettingsWindow:
             orient=tk.HORIZONTAL,
             command=self.on_swipe_distance_threshold_change
         )
-        self.swipe_distance_threshold_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        self.swipe_distance_threshold_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
         self.swipe_distance_threshold_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_distance_threshold:.3f}")
-        self.swipe_distance_threshold_label.grid(row=0, column=2, padx=(5, 0), pady=(0, 5))
+        self.swipe_distance_threshold_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
         
         # 스와이프 필요 프레임 수 설정
-        ttk.Label(swipe_frame, text="스와이프 필요 프레임 수:").grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(swipe_frame, text="스와이프 필요 프레임 수:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
         
         self.swipe_required_frames_var = tk.IntVar(value=config.gesture.swipe_required_frames)
         self.swipe_required_frames_scale = ttk.Scale(
@@ -255,13 +259,13 @@ class SettingsWindow:
             orient=tk.HORIZONTAL,
             command=self.on_swipe_required_frames_change
         )
-        self.swipe_required_frames_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        self.swipe_required_frames_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
         self.swipe_required_frames_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_required_frames}")
-        self.swipe_required_frames_label.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
+        self.swipe_required_frames_label.grid(row=2, column=2, padx=(5, 0), pady=(0, 5))
         
         # 스와이프 쿨타임 설정
-        ttk.Label(swipe_frame, text="스와이프 쿨타임:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(swipe_frame, text="스와이프 쿨타임:").grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
         
         self.swipe_cooldown_var = tk.DoubleVar(value=config.gesture.swipe_cooldown)
         self.swipe_cooldown_scale = ttk.Scale(
@@ -272,10 +276,10 @@ class SettingsWindow:
             orient=tk.HORIZONTAL,
             command=self.on_swipe_cooldown_change
         )
-        self.swipe_cooldown_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        self.swipe_cooldown_scale.grid(row=3, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
         self.swipe_cooldown_label = ttk.Label(swipe_frame, text=f"{config.gesture.swipe_cooldown:.1f}초")
-        self.swipe_cooldown_label.grid(row=2, column=2, padx=(5, 0), pady=(0, 5))
+        self.swipe_cooldown_label.grid(row=3, column=2, padx=(5, 0), pady=(0, 5))
         
         # 그리드 가중치 설정
         swipe_frame.columnconfigure(1, weight=1)
@@ -422,7 +426,7 @@ class SettingsWindow:
     def create_camera_settings(self, parent) -> None:
         """카메라 설정 섹션 생성"""
         camera_frame = ttk.LabelFrame(parent, text="카메라 설정", padding="15")
-        camera_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))  # row 인덱스 수정
+        camera_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 카메라 해상도 설정
         ttk.Label(camera_frame, text="카메라 해상도:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
@@ -449,13 +453,30 @@ class SettingsWindow:
         )
         fps_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
         
+        # 프레임 딜레이 설정
+        ttk.Label(camera_frame, text="프레임 딜레이:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.frame_delay_var = tk.DoubleVar(value=config.camera.frame_delay)
+        self.frame_delay_scale = ttk.Scale(
+            camera_frame,
+            from_=0.01,
+            to=0.1,
+            orient=tk.HORIZONTAL,
+            variable=self.frame_delay_var,
+            command=self.on_frame_delay_change
+        )
+        self.frame_delay_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(0, 5))
+        
+        self.frame_delay_label = ttk.Label(camera_frame, text=f"{config.camera.frame_delay:.3f}초")
+        self.frame_delay_label.grid(row=2, column=2, padx=(5, 0), pady=(0, 5))
+        
         # 그리드 가중치 설정
         camera_frame.columnconfigure(1, weight=1)
     
     def create_tracking_settings(self, parent) -> None:
         """손 트래킹 설정 섹션 생성"""
         tracking_frame = ttk.LabelFrame(parent, text="손 트래킹 설정", padding="15")
-        tracking_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        tracking_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 최대 손 개수
         ttk.Label(tracking_frame, text="최대 손 개수:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
@@ -501,7 +522,7 @@ class SettingsWindow:
     def create_debug_settings(self, parent) -> None:
         """디버그 설정 섹션 생성"""
         debug_frame = ttk.LabelFrame(parent, text="디버그 설정", padding="15")
-        debug_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        debug_frame.grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # 디버그 모드 체크박스
         self.debug_mode_var = tk.BooleanVar(value=config.ui.debug_mode)
@@ -527,7 +548,7 @@ class SettingsWindow:
     def create_buttons(self, parent) -> None:
         """버튼 프레임 생성"""
         button_frame = ttk.Frame(parent)
-        button_frame.grid(row=9, column=0, columnspan=2, pady=(20, 0))
+        button_frame.grid(row=10, column=0, columnspan=2, pady=(20, 0))
         
         # 적용 버튼
         apply_button = ttk.Button(button_frame, text="적용", command=self.apply_settings)
@@ -597,6 +618,15 @@ class SettingsWindow:
         config.gesture.swipe_cooldown = cooldown
         logger.debug(f"스와이프 쿨타임 실시간 적용: {cooldown}초")
     
+    def on_frame_delay_change(self, value) -> None:
+        """프레임 딜레이 변경 콜백"""
+        delay = float(value)
+        self.frame_delay_label.config(text=f"{delay:.3f}초")
+        
+        # 실시간으로 프레임 딜레이 적용
+        config.camera.frame_delay = delay
+        logger.debug(f"프레임 딜레이 실시간 적용: {delay:.3f}초")
+    
     def apply_settings(self) -> None:
         """설정 적용"""
         try:
@@ -624,6 +654,7 @@ class SettingsWindow:
             config.camera.width = int(resolution[0])
             config.camera.height = int(resolution[1])
             config.camera.fps = self.fps_var.get()
+            config.camera.frame_delay = self.frame_delay_var.get()
             
             # 손 트래킹 설정 업데이트
             config.hand_tracking.max_num_hands = self.max_hands_var.get()
@@ -657,6 +688,7 @@ class SettingsWindow:
             self.click_threshold_var.set(0.05)
             self.resolution_var.set("640x480")
             self.fps_var.set(30)
+            self.frame_delay_var.set(0.03)
             self.max_hands_var.set(1)
             self.detection_confidence_var.set(0.7)
             self.tracking_confidence_var.set(0.5)
@@ -690,6 +722,7 @@ class SettingsWindow:
             self.swipe_distance_threshold_label.config(text="0.008")
             self.swipe_required_frames_label.config(text="3")
             self.swipe_cooldown_label.config(text="1.5초")
+            self.frame_delay_label.config(text="0.030초")
 
             
             messagebox.showinfo("성공", "기본값으로 복원되었습니다.")

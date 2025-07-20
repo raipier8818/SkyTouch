@@ -224,7 +224,7 @@ class CameraPanel(ttk.LabelFrame):
                 # GUI 스레드에서 안전하게 업데이트 (PIL Image 전달)
                 self.camera_label.after(0, self._update_image, pil_image)
                 
-                time.sleep(0.03)  # 약 30 FPS
+                time.sleep(config.camera.frame_delay)  # 설정에서 프레임 딜레이 가져오기
             
             logger.info("카메라 디스플레이 루프 종료")
             

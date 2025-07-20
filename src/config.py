@@ -15,6 +15,7 @@ class CameraConfig:
     height: int = 360
     fps: int = 30
     device_id: int = 0
+    frame_delay: float = 0.03  # 프레임 간 딜레이 (초) - 약 30 FPS
 
 
 @dataclass
@@ -39,18 +40,18 @@ class GestureConfig:
     # 스와이프 모드 설정
     swipe_distance_threshold: float = 0.008  # 스와이프 감지 최소 거리
     swipe_required_frames: int = 3  # 스와이프 감지에 필요한 연속 프레임 수
-    swipe_cooldown: float = 1.5  # 스와이프 쿨타임 (초)
+    swipe_cooldown: float = 2.0  # 스와이프 쿨타임 (초) - 연속 실행 방지를 위해 증가
     
     # 손가락 감지 설정
     finger_threshold: float = 0.02  # 손가락 펴짐/접힘 감지 임계값
     
     # 기존 설정 (호환성 유지)
-    swipe_threshold: float = 0.03  # 스와이프 임계값 (더 낮춤)
+    swipe_threshold: float = 0.05  # 스와이프 임계값 (더 낮춤)
     swipe_time_limit: float = 1.0  # 스와이프 시간 제한 (초)
     mode_stabilization_time: float = 0.2  # 모드 안정화 시간 (초) - 더 빠른 모드 변경을 위해 단축
     scroll_threshold: float = 0.1  # 스크롤 임계값
     smoothing_factor: float = 0.5
-    sensitivity: float = 1.0
+    sensitivity: float = 1.5
 
     # 마우스 반전 설정
     invert_x: bool = False  # X축 좌우 반전

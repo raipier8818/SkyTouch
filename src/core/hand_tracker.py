@@ -33,7 +33,7 @@ class GestureData:
     is_double_clicking: bool  # 더블클릭
     is_scrolling: bool  # 스크롤 모드에서 스크롤
     is_swiping: bool  # 스와이프 모드에서 스와이프
-    swipe_direction: str  # "left", "right", "none"
+    swipe_direction: str  # "left", "right", "up", "down", "none"
     scroll_direction: str  # "up", "down", "left", "right", "none"
 
 
@@ -311,7 +311,7 @@ class HandTracker:
             
             # 각 모드별 세부 제스처 감지
             gesture_actions = self._detect_gesture_actions(
-                stable_gesture_mode, thumb_distances, current_time
+                stable_gesture_mode, thumb_distances, current_time, finger_states
             )
             
             return GestureData(
@@ -355,10 +355,12 @@ class HandTracker:
     def _detect_gesture_mode(self, finger_states: Dict[str, bool], 
                            thumb_distances: Dict[str, float]) -> str:
         """제스처 모드 감지"""
-        # 클릭 모드: 엄지와 검지 또는 엄지와 중지가 닿은 상태
-        if (thumb_distances['thumb_index_distance'] < config.gesture.click_threshold or 
-            thumb_distances['thumb_middle_distance'] < config.gesture.click_threshold):
-            logger.debug(f"클릭 모드 감지: 엄지-검지={thumb_distances['thumb_index_distance']:.3f}, 엄지-중지={thumb_distances['thumb_middle_distance']:.3f}")
+        # 클릭 모드: 엄지와 검지 또는 엄지와 중지가 닿은 상태 + 약지와 새끼손가락이 펴져 있어야 함
+        ring_pinky_extended = finger_states['ring_extended'] and finger_states['pinky_extended']
+        if ((thumb_distances['thumb_index_distance'] < config.gesture.click_threshold or 
+             thumb_distances['thumb_middle_distance'] < config.gesture.click_threshold) and 
+            ring_pinky_extended):
+            logger.debug(f"클릭 모드 감지: 엄지-검지={thumb_distances['thumb_index_distance']:.3f}, 엄지-중지={thumb_distances['thumb_middle_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended}")
             return "click"
         
         # 정지 모드: 모든 손가락을 편 상태
@@ -405,7 +407,7 @@ class HandTracker:
     
     def _detect_gesture_actions(self, stable_gesture_mode: str, 
                               thumb_distances: Dict[str, float], 
-                              current_time: float) -> Dict[str, Any]:
+                              current_time: float, finger_states: Dict[str, bool] = None) -> Dict[str, Any]:
         """각 모드별 세부 제스처 감지"""
         # 기본값 초기화
         actions = {
@@ -418,23 +420,18 @@ class HandTracker:
             'scroll_direction': "none"
         }
         
-        # 클릭 감지 (모드와 관계없이 항상 실행)
-        click_actions = self._handle_click_detection(thumb_distances, current_time)
-        actions.update(click_actions)
-        
-        # 클릭 모드 처리
+        # 클릭 모드에서만 클릭 감지 실행
         if stable_gesture_mode == "click":
+            click_actions = self._handle_click_detection(thumb_distances, current_time, finger_states)
+            actions.update(click_actions)
             logger.debug(f"클릭 모드 처리 시작 (안정화: {self.is_mode_stable})")
             logger.debug(f"클릭 모드 - 엄지-검지 거리: {thumb_distances['thumb_index_distance']:.3f}, 임계값: {config.gesture.click_threshold:.3f}")
             logger.debug(f"클릭 모드 - 엄지-중지 거리: {thumb_distances['thumb_middle_distance']:.3f}, 임계값: {config.gesture.click_threshold:.3f}")
             logger.debug(f"클릭 모드 처리 완료: {actions}")
         else:
             logger.debug(f"클릭 모드 처리 건너뜀: 모드={stable_gesture_mode}")
-        
-        # 스크롤/스와이프 모드에서 클릭 비활성화
-        if stable_gesture_mode in ["scroll", "swipe"]:
+            # 클릭 모드가 아니면 클릭 상태 리셋
             self._reset_click_states()
-            logger.debug(f"{stable_gesture_mode} 모드 - 클릭 비활성화")
         
         # 스크롤 모드 처리
         if stable_gesture_mode == "scroll" and self.is_mode_stable:
@@ -445,7 +442,12 @@ class HandTracker:
         
         # 스와이프 모드 처리
         if stable_gesture_mode == "swipe" and self.is_mode_stable:
-            actions.update(self._handle_swipe_mode(current_time))
+            swipe_actions = self._handle_swipe_mode(current_time)
+            actions.update(swipe_actions)
+            
+            # 스와이프가 실행되었으면 로그만 출력 (상태는 유지)
+            if swipe_actions['is_swiping']:
+                logger.debug("스와이프 실행됨 - 다음 스와이프 준비")
         else:
             # 스와이프 모드가 아니면 스와이프 관련 변수 리셋
             self._reset_swipe_variables()
@@ -453,7 +455,7 @@ class HandTracker:
         return actions
     
     def _handle_click_detection(self, thumb_distances: Dict[str, float], 
-                              current_time: float) -> Dict[str, Any]:
+                              current_time: float, finger_states: Dict[str, bool] = None) -> Dict[str, Any]:
         """클릭 감지 (모드와 관계없이 실행)"""
         actions = {
             'is_clicking': False,
@@ -461,7 +463,19 @@ class HandTracker:
             'is_double_clicking': False
         }
         
-        # 엄지-검지 클릭 감지
+        # 손가락 상태가 제공되지 않으면 기본값 설정
+        if finger_states is None:
+            finger_states = {
+                'index_extended': True,
+                'middle_extended': True,
+                'ring_extended': True,
+                'pinky_extended': True
+            }
+        
+        # 약지와 새끼손가락이 펴져 있는지 확인
+        ring_pinky_extended = finger_states['ring_extended'] and finger_states['pinky_extended']
+        
+        # 엄지-검지 클릭 감지 (약지, 새끼손가락이 펴져 있어야 함)
         if thumb_distances['thumb_index_distance'] < config.gesture.click_threshold:
             # 손가락이 닿음
             if not self.thumb_index_touching:
@@ -470,25 +484,29 @@ class HandTracker:
         else:
             # 손가락이 떨어짐
             if self.thumb_index_touching:
-                # 터치가 끝났으므로 클릭 실행
-                actions['is_clicking'] = True
-                logger.debug(f"좌클릭 실행: 엄지-검지 떼어짐 (거리: {thumb_distances['thumb_index_distance']:.3f})")
-                
-                # 더블클릭 감지
-                if current_time - self.last_click_time < 0.5:
-                    self.click_count += 1
-                    if self.click_count >= 2:
-                        actions['is_double_clicking'] = True
-                        self.click_count = 0
-                        logger.debug("더블클릭 감지!")
+                # 약지와 새끼손가락이 펴져 있는지 확인
+                if ring_pinky_extended:
+                    # 터치가 끝났으므로 클릭 실행
+                    actions['is_clicking'] = True
+                    logger.debug(f"좌클릭 실행: 엄지-검지 떼어짐 (거리: {thumb_distances['thumb_index_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended})")
+                    
+                    # 더블클릭 감지
+                    if current_time - self.last_click_time < 0.5:
+                        self.click_count += 1
+                        if self.click_count >= 2:
+                            actions['is_double_clicking'] = True
+                            self.click_count = 0
+                            logger.debug("더블클릭 감지!")
+                    else:
+                        self.click_count = 1
+                    
+                    self.last_click_time = current_time
                 else:
-                    self.click_count = 1
-                
-                self.last_click_time = current_time
+                    logger.debug(f"좌클릭 무시: 약지/새끼손가락이 접혀있음 (약지: {finger_states['ring_extended']}, 새끼: {finger_states['pinky_extended']})")
             
             self.thumb_index_touching = False
         
-        # 엄지-중지 우클릭 감지
+        # 엄지-중지 우클릭 감지 (약지, 새끼손가락이 펴져 있어야 함)
         if thumb_distances['thumb_middle_distance'] < config.gesture.click_threshold:
             # 손가락이 닿음
             if not self.thumb_middle_touching:
@@ -497,9 +515,13 @@ class HandTracker:
         else:
             # 손가락이 떨어짐
             if self.thumb_middle_touching:
-                # 터치가 끝났으므로 우클릭 실행
-                actions['is_right_clicking'] = True
-                logger.debug(f"우클릭 실행: 엄지-중지 떼어짐 (거리: {thumb_distances['thumb_middle_distance']:.3f})")
+                # 약지와 새끼손가락이 펴져 있는지 확인
+                if ring_pinky_extended:
+                    # 터치가 끝났으므로 우클릭 실행
+                    actions['is_right_clicking'] = True
+                    logger.debug(f"우클릭 실행: 엄지-중지 떼어짐 (거리: {thumb_distances['thumb_middle_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended})")
+                else:
+                    logger.debug(f"우클릭 무시: 약지/새끼손가락이 접혀있음 (약지: {finger_states['ring_extended']}, 새끼: {finger_states['pinky_extended']})")
             
             self.thumb_middle_touching = False
         
@@ -650,11 +672,11 @@ class HandTracker:
                 self.is_swipe_cooldown = True
                 logger.debug(f"스와이프 쿨타임 시작: {config.gesture.swipe_cooldown}초")
                 
-                # 스와이프 감지 후 초기화
-                self.swipe_palm_position = None
+                # 스와이프 감지 후 방향 히스토리만 초기화 (위치는 유지)
                 self.swipe_direction_history = []
                 self.swipe_frame_count = 0
                 
+                # 스와이프 상태를 즉시 False로 설정하여 연속 실행 방지
                 return {'is_swiping': True, 'swipe_direction': swipe_direction}
         else:
             # 이동이 없으면 히스토리 초기화
