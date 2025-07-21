@@ -1,4 +1,15 @@
-mediapipe==0.10.8
-opencv-python==4.8.1.78
-pyautogui==0.9.54
-numpy==1.24.3 
+# Hand Tracking Trackpad Application Requirements
+# Core dependencies
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+pyautogui>=0.9.54
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Optional dependencies for enhanced functionality
+psutil>=5.9.0  # For system monitoring in debug panel
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0 
