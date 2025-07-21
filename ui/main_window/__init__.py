@@ -2,6 +2,6 @@
 Main window module for Hand Tracking Trackpad application.
 """
 
-from .window import MainWindow
+from .pyqt_main_window import IOSMainWindow
 
-__all__ = ['MainWindow'] 
+__all__ = ['IOSMainWindow'] 
