@@ -1,5 +1,5 @@
 """
-Main application class for Hand Tracking Trackpad.
+Main application class for SkyTouch.
 """
 import threading
 import time
@@ -21,13 +21,13 @@ from ui.main_window.pyqt_main_window import IOSMainWindow
 logger = get_logger(__name__)
 
 
-class HandTrackpadApp:
-    """Hand Tracking Trackpad 메인 애플리케이션 클래스"""
+class SkyTouchApp:
+    """SkyTouch 메인 애플리케이션 클래스"""
     
     def __init__(self):
         """애플리케이션 초기화"""
         try:
-            logger.info("Hand Tracking Trackpad 애플리케이션을 시작합니다.")
+            logger.info("SkyTouch 애플리케이션을 시작합니다.")
             
             # 설정 관리자 초기화
             self.config_manager = ConfigManager()
@@ -98,6 +98,9 @@ class HandTrackpadApp:
         try:
             if not self.tracking_active:
                 self.tracking_active = True
+                # 카메라 패널 시작
+                if self.main_window and self.main_window.camera_panel:
+                    self.main_window.camera_panel.start_display()
                 logger.info("트래킹이 시작되었습니다.")
             
         except Exception as e:
@@ -109,6 +112,15 @@ class HandTrackpadApp:
         try:
             if self.tracking_active:
                 self.tracking_active = False
+                # 카메라 패널 정지
+                if self.main_window and self.main_window.camera_panel:
+                    self.main_window.camera_panel.stop_display()
+                # 카메라 재초기화 (리소스 해제 후 다시 준비)
+                if self.camera_capture:
+                    self.camera_capture.release()
+                    # 카메라 재초기화
+                    camera_config = self.config_manager.get_camera_config()
+                    self.camera_capture = CameraCapture(camera_config)
                 logger.info("트래킹이 정지되었습니다.")
             
         except Exception as e:
@@ -119,7 +131,7 @@ class HandTrackpadApp:
         """애플리케이션 실행"""
         try:
             logger.info("애플리케이션을 실행합니다.")
-            self.main_window.camera_panel.start_display()
+            # 카메라 자동 시작 제거 - 사용자가 버튼을 눌러야 시작됨
             self.main_window.show()
             sys.exit(self.qt_app.exec_())
             
@@ -127,6 +139,8 @@ class HandTrackpadApp:
             logger.error(f"애플리케이션 실행 중 오류: {e}")
             raise HandTrackpadError(f"애플리케이션 실행 실패: {e}")
         finally:
+            # 리소스 정리
+            self.cleanup()
             logger.info("애플리케이션이 종료되었습니다.")
     
     def cleanup(self) -> None:

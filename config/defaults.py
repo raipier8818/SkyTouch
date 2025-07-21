@@ -44,7 +44,7 @@ DEFAULT_CONFIG = {
         "window_height": 800,
         "theme": "clam",
         "font_family": "Arial",
-        "title": "Hand Tracking Trackpad",
+        "title": "SkyTouch",
         "debug_mode": True
     }
 } 

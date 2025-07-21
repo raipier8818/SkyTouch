@@ -6,122 +6,13 @@ import threading
 import time
 import numpy as np
 
-from core.hand_tracking.detector import HandDetector
-from core.gesture.detector import GestureDetector
-from core.mouse.controller import MouseController
-
-qss = """
-/*
- * Professional & Modern Dark Theme
- *
- * - 콘트라스트가 명확한 정제된 다크 테마.
- * - 각 영역을 명확한 '카드' 형태로 분리하여 구조적 안정감 부여.
- * - 인터랙티브 요소에 하이라이트 컬러를 적용하여 직관성 강화.
- * - 현대적인 UI 트렌드를 반영한 탭, 버튼 디자인.
- */
-
-QMainWindow {
-    background-color: #101114; /* 매우 어두운 배경색 */
-}
-
-QWidget {
-    font-family: 'SF Pro Text', 'Helvetica Neue', 'Arial', sans-serif;
-    color: #E6E6E6;
-    border: none;
-}
-
-/* 패널 기본 스타일 (트랙패드, 카메라, 컨트롤) */
-#TrackpadPanel, #CameraPanel, #ControlPanel {
-    background-color: #1C1D21;
-    border-radius: 12px;
-}
-
-/* 제목 라벨 */
-#TitleLabel {
-    font-size: 24px;
-    font-weight: 600;
-    color: #8A8B90; /* 너무 튀지 않는 색상 */
-}
-
-/* 카메라 영상이 표시될 라벨 */
-#CameraLabel {
-    border-radius: 12px;
-}
-
-/* 설정 버튼 */
-#SettingsButton {
-    background-color: #323337;
-    color: #E6E6E6;
-    font-size: 15px;
-    font-weight: 500;
-    border-radius: 8px;
-}
-
-#SettingsButton:hover {
-    background-color: #3F4045;
-}
-
-/* --- 설정창 (Dialog) 스타일 --- */
-QDialog {
-    background-color: #1C1D21;
-}
-
-QLineEdit, QComboBox {
-    background-color: #2D2E32;
-    border: 1px solid #3A3B3F;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 14px;
-}
-
-QLineEdit:focus, QComboBox:focus {
-    border-color: #0A84FF; /* 포커스 시 iOS 블루 컬러 */
-}
-
-/* 설정창 탭 위젯 */
-QTabWidget::pane {
-    border: none;
-}
-
-QTabBar::tab {
-    min-width: 60px;         /* 탭 최소 너비 */
-    padding: 10px;       /* 좌우 패딩 넉넉하게 */
-    font-size: 15px;
-    font-weight: 500;
-    color: #8A8B90;
-    border-bottom: 2px solid transparent;
-}
-
-QTabBar::tab:hover {
-    color: #E6E6E6;
-}
-
-QTabBar::tab:selected {
-    color: #FFFFFF;
-    font-weight: 500;
-    border-bottom: 2px solid #0A84FF; /* 선택된 탭에 파란색 밑줄 */
-}
-
-/* 설정창 저장 버튼 (기본 QPushButton) */
-QDialog QPushButton {
-    background-color: #0A84FF; /* iOS 블루 */
-    color: #FFFFFF;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: 8px;
-    padding: 12px 0;
-}
-
-QDialog QPushButton:hover {
-    background-color: #0070D9; /* 살짝 어둡게 */
-}
-"""
+from ui.styles.style_manager import StyleManager
 
 class SettingsDialog(QDialog):
     def __init__(self, app_logic, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("설정")
-        self.resize(400, 100)  # ← 여기서 기본 크기 설정!
+        self.setWindowTitle("SkyTouch 설정")
+        self.resize(400, 200)
         self.app_logic = app_logic
         self.config_manager = app_logic.config_manager
         layout = QVBoxLayout(self)
@@ -309,6 +200,12 @@ class CameraPanel(QWidget):
 
     def stop_display(self):
         self.is_displaying = False
+        # 카메라 리소스 완전 해제
+        if hasattr(self.app_logic, 'camera_capture') and self.app_logic.camera_capture:
+            self.app_logic.camera_capture.release()
+        # 초기 화면으로 복원
+        self.camera_label.setText("카메라 화면")
+        self.camera_label.setPixmap(QPixmap())  # 픽스맵 초기화
 
     def display_loop(self):
         while self.is_displaying:
@@ -353,30 +250,67 @@ class CameraPanel(QWidget):
                     )
                 )
             time.sleep(1/30)
+        
+        # 루프 종료 시 초기 화면으로 복원 및 카메라 리소스 해제
+        self.camera_label.setText("카메라 화면")
+        self.camera_label.setPixmap(QPixmap())
+        # 카메라 리소스 해제
+        if hasattr(self.app_logic, 'camera_capture') and self.app_logic.camera_capture:
+            self.app_logic.camera_capture.release()
 
 class IOSMainWindow(QMainWindow):
     def __init__(self, app_logic):
         super().__init__()
-        self.setWindowTitle("Hand Tracking Trackpad")
-        self.setMinimumSize(700, 500)
-        self.setStyleSheet(qss)
+        self.app_logic = app_logic
+        # self.setWindowTitle("SkyTouch")
+        self.setMinimumSize(400, 500)
+        
+        # 윈도우 투명도 설정
+        self.setWindowOpacity(0.9)  # 90% 투명도
+        self.setAttribute(Qt.WA_TranslucentBackground, True)  # 배경 투명화
+        
+        # 스타일 관리자 초기화 및 테마 적용
+        self.style_manager = StyleManager()
+        self.style_manager.apply_theme_to_widget(self, "dark_theme")
+        
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
-        main_layout.setSpacing(8)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(4)  # 간격 줄임
+        main_layout.setContentsMargins(8, 8, 8, 8)  # 여백 줄임
 
-        title = QLabel("Hand Tracking Trackpad")
-        title.setObjectName("TitleLabel")
-        title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title, 0)  # stretch=0
+        # 제목 라벨 제거
 
         self.camera_panel = CameraPanel(app_logic)
         main_layout.addWidget(self.camera_panel, 1)  # stretch=1
 
+        # 트래킹 제어 버튼 추가
+        self.tracking_btn = QPushButton("트래킹 시작")
+        self.tracking_btn.setObjectName("SettingsButton")
+        self.tracking_btn.clicked.connect(self.toggle_tracking)
+        main_layout.addWidget(self.tracking_btn, 0)  # stretch=0
+
         self.settings_btn = QPushButton("설정")
+        self.settings_btn.setObjectName("SettingsButton")
         self.settings_btn.clicked.connect(lambda: self.open_settings(app_logic))
         main_layout.addWidget(self.settings_btn, 0)  # stretch=0
         self.setCentralWidget(main_widget)
+        
+        # 트래킹 상태
+        self.is_tracking = False
+    
+    def toggle_tracking(self):
+        """트래킹 시작/중지 토글"""
+        if not self.is_tracking:
+            # 트래킹 시작
+            self.app_logic.start_tracking()
+            self.tracking_btn.setText("트래킹 중지")
+            self.is_tracking = True
+        else:
+            # 트래킹 중지
+            self.app_logic.stop_tracking()
+            self.tracking_btn.setText("트래킹 시작")
+            self.is_tracking = False
+    
     def open_settings(self, app_logic):
         dlg = SettingsDialog(app_logic, self)
         dlg.exec_() 

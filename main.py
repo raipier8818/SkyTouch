@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hand Tracking Trackpad Application
+SkyTouch Application
 
 A desktop application that uses MediaPipe for hand tracking
 to control mouse cursor and perform gestures.
@@ -17,7 +17,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from app import HandTrackpadApp
+from app import SkyTouchApp
 from utils.logging.logger import get_logger
 from exceptions.base import HandTrackpadError
 
@@ -28,7 +28,7 @@ def main():
     """메인 함수"""
     try:
         # 애플리케이션 생성 및 실행
-        app = HandTrackpadApp()
+        app = SkyTouchApp()
         app.run()
         
     except KeyboardInterrupt:
