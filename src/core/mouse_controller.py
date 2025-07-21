@@ -47,7 +47,7 @@ class MouseController:
             
             # 마우스 설정
             pyautogui.FAILSAFE = True  # 마우스를 화면 모서리로 이동하면 중단
-            pyautogui.PAUSE = 0.01     # 각 동작 사이의 지연 시간
+            pyautogui.PAUSE = 0.001    # 각 동작 사이의 지연 시간 (더 빠르게)
             
             # macOS에서 키보드 입력 안정성을 위한 설정
             pyautogui.MINIMUM_DURATION = 0.1  # 최소 키 입력 지속 시간
@@ -62,9 +62,14 @@ class MouseController:
             
             # 제스처 모드 관련 속성들
             self.gesture_history = []
-            self.current_gesture_mode = "stop"
+            self.current_gesture_mode = "click"
             self.mode_start_time = time.time()
             self.is_mode_stable = False
+            
+            # 부드러운 이동을 위한 변수들
+            self.smoothed_x = 0.0
+            self.smoothed_y = 0.0
+            self.last_move_time = time.time()
             
             # 마우스 상태
             self.current_state = MouseState(
@@ -84,13 +89,13 @@ class MouseController:
             logger.error(f"마우스 컨트롤러 초기화 실패: {e}")
             raise HandTrackpadError(f"마우스 컨트롤러 초기화 실패: {e}")
     
-    def update_mouse_position(self, palm_center: list, gesture_mode: str = "stop", smoothing: float = 0.5) -> None:
+    def update_mouse_position(self, palm_center: list, gesture_mode: str = "click", smoothing: float = 0.5) -> None:
         """
         손바닥 위치에 따라 마우스 커서 위치 업데이트
         
         Args:
             palm_center: 손바닥 중심점 [x, y, z]
-            gesture_mode: 제스처 모드 ("click", "stop", "scroll", "swipe", "move")
+            gesture_mode: 제스처 모드 ("click", "scroll", "swipe", "move")
             smoothing: 스무딩 팩터 (0.0 ~ 1.0)
         """
         try:
@@ -127,9 +132,18 @@ class MouseController:
                 self.prev_palm_y = current_palm_y
                 return
             
-            # 스무딩 적용
-            smoothed_delta_x = delta_x * smoothing
-            smoothed_delta_y = delta_y * smoothing
+            # 부드러운 스무딩 적용 (지수 이동 평균)
+            smoothing_factor = smoothing * 0.8  # 더 부드럽게
+            self.smoothed_x = self.smoothed_x * (1 - smoothing_factor) + delta_x * smoothing_factor
+            self.smoothed_y = self.smoothed_y * (1 - smoothing_factor) + delta_y * smoothing_factor
+            
+            # 최소 이동량 임계값 (너무 작은 움직임 무시)
+            min_movement_threshold = 0.001
+            if abs(self.smoothed_x) < min_movement_threshold and abs(self.smoothed_y) < min_movement_threshold:
+                # 이전 손바닥 위치 업데이트
+                self.prev_palm_x = current_palm_x
+                self.prev_palm_y = current_palm_y
+                return
             
             # 실제 웹캠 해상도 기반 1:1 비례 감도 계산
             if self.hand_tracker:
@@ -147,13 +161,13 @@ class MouseController:
             final_sensitivity_x = auto_sensitivity_x * config.gesture.sensitivity
             final_sensitivity_y = auto_sensitivity_y * config.gesture.sensitivity
             
-            # 화면 크기에 비례한 이동량 계산
-            move_x = int(smoothed_delta_x * self.screen_width * final_sensitivity_x)
-            move_y = int(smoothed_delta_y * self.screen_height * final_sensitivity_y)
+            # 화면 크기에 비례한 이동량 계산 (부드러운 값 사용)
+            move_x = int(self.smoothed_x * self.screen_width * final_sensitivity_x)
+            move_y = int(self.smoothed_y * self.screen_height * final_sensitivity_y)
             
             # 감도 디버그 로그 (주기적으로 출력)
             if abs(move_x) > 0 or abs(move_y) > 0:
-                logger.debug(f"감도 적용: delta=({delta_x:.3f}, {delta_y:.3f}), auto_sensitivity=({auto_sensitivity_x:.2f}, {auto_sensitivity_y:.2f}), user_sensitivity={config.gesture.sensitivity:.2f}, move=({move_x}, {move_y})")
+                logger.debug(f"부드러운 이동: smoothed=({self.smoothed_x:.3f}, {self.smoothed_y:.3f}), sensitivity=({final_sensitivity_x:.2f}, {final_sensitivity_y:.2f}), move=({move_x}, {move_y})")
             
             # 현재 마우스 위치 가져오기
             current_mouse_x, current_mouse_y = pyautogui.position()
@@ -167,8 +181,8 @@ class MouseController:
             new_x = max(margin, min(new_x, self.screen_width - margin - 1))
             new_y = max(margin, min(new_y, self.screen_height - margin - 1))
             
-            # 마우스 이동
-            pyautogui.moveTo(new_x, new_y)
+            # 마우스 이동 (더 부드럽게)
+            pyautogui.moveTo(new_x, new_y, duration=0.001)
             
             # 이전 손바닥 위치 업데이트
             self.prev_palm_x = current_palm_x
@@ -360,6 +374,11 @@ class MouseController:
             self.prev_palm_x = None
             self.prev_palm_y = None
             self.is_initialized = False
+            
+            # 부드러운 이동 변수 초기화
+            self.smoothed_x = 0.0
+            self.smoothed_y = 0.0
+            self.last_move_time = time.time()
             
             logger.debug("마우스 상태가 초기화되었습니다.")
             

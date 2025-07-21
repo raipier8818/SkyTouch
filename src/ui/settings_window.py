@@ -210,12 +210,12 @@ class SettingsWindow:
         click_frame.columnconfigure(1, weight=1)
     
     def create_stop_settings(self, parent) -> None:
-        """정지 모드 설정 섹션 생성"""
-        stop_frame = ttk.LabelFrame(parent, text="정지 모드 설정", padding="15")
+        """클릭 모드 설정 섹션 생성"""
+        stop_frame = ttk.LabelFrame(parent, text="클릭 모드 설정", padding="15")
         stop_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        # 정지 모드 설명
-        ttk.Label(stop_frame, text="모든 손가락을 편 상태에서 정지합니다.", 
+        # 클릭 모드 설명
+        ttk.Label(stop_frame, text="약지와 새끼손가락을 펴면 클릭 모드가 됩니다. 엄지-검지/중지를 닿이면 클릭합니다.", 
                  font=("", 9), foreground="gray").grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
         
         # 그리드 가중치 설정

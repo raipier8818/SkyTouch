@@ -27,7 +27,7 @@ class HandLandmarks:
 class GestureData:
     """제스처 데이터 클래스"""
     palm_center: List[float]
-    gesture_mode: str  # "click", "stop", "scroll", "swipe", "move"
+    gesture_mode: str  # "click", "scroll", "swipe", "move"
     is_clicking: bool  # 클릭 모드에서 클릭
     is_right_clicking: bool  # 클릭 모드에서 우클릭
     is_double_clicking: bool  # 더블클릭
@@ -86,7 +86,7 @@ class HandTracker:
         self.is_swipe_cooldown = False
         
         # 모드 안정화 변수들
-        self.current_gesture_mode = "stop"
+        self.current_gesture_mode = "click"
         self.mode_start_time = 0.0
         self.is_mode_stable = False
         
@@ -355,17 +355,9 @@ class HandTracker:
     def _detect_gesture_mode(self, finger_states: Dict[str, bool], 
                            thumb_distances: Dict[str, float]) -> str:
         """제스처 모드 감지"""
-        # 클릭 모드: 엄지와 검지 또는 엄지와 중지가 닿은 상태 + 약지와 새끼손가락이 펴져 있어야 함
-        ring_pinky_extended = finger_states['ring_extended'] and finger_states['pinky_extended']
-        if ((thumb_distances['thumb_index_distance'] < config.gesture.click_threshold or 
-             thumb_distances['thumb_middle_distance'] < config.gesture.click_threshold) and 
-            ring_pinky_extended):
-            logger.debug(f"클릭 모드 감지: 엄지-검지={thumb_distances['thumb_index_distance']:.3f}, 엄지-중지={thumb_distances['thumb_middle_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended}")
+        # 클릭 모드: 약지와 새끼손가락만 편 상태 (다른 손가락은 상관없음)
+        if (finger_states['ring_extended'] and finger_states['pinky_extended']):
             return "click"
-        
-        # 정지 모드: 모든 손가락을 편 상태
-        elif all(finger_states.values()):
-            return "stop"
         
         # 스와이프 모드: 주먹 (모든 손가락을 접은 상태)
         elif not any(finger_states.values()):
@@ -381,7 +373,7 @@ class HandTracker:
               not finger_states['ring_extended'] and not finger_states['pinky_extended']):
             return "move"
         
-        return "stop"  # 기본값
+        return "click"  # 기본값
     
     def _handle_mode_change(self, gesture_mode: str) -> None:
         """모드 변경 처리"""
@@ -420,16 +412,13 @@ class HandTracker:
             'scroll_direction': "none"
         }
         
-        # 클릭 모드에서만 클릭 감지 실행
+        # 클릭 감지는 클릭 모드에서만 실행
         if stable_gesture_mode == "click":
             click_actions = self._handle_click_detection(thumb_distances, current_time, finger_states)
             actions.update(click_actions)
-            logger.debug(f"클릭 모드 처리 시작 (안정화: {self.is_mode_stable})")
-            logger.debug(f"클릭 모드 - 엄지-검지 거리: {thumb_distances['thumb_index_distance']:.3f}, 임계값: {config.gesture.click_threshold:.3f}")
-            logger.debug(f"클릭 모드 - 엄지-중지 거리: {thumb_distances['thumb_middle_distance']:.3f}, 임계값: {config.gesture.click_threshold:.3f}")
-            logger.debug(f"클릭 모드 처리 완료: {actions}")
+            logger.debug(f"클릭 감지 실행: 클릭 모드")
         else:
-            logger.debug(f"클릭 모드 처리 건너뜀: 모드={stable_gesture_mode}")
+            logger.debug(f"클릭 감지 건너뜀: 클릭 모드가 아님 (현재 모드: {stable_gesture_mode})")
             # 클릭 모드가 아니면 클릭 상태 리셋
             self._reset_click_states()
         
@@ -456,7 +445,7 @@ class HandTracker:
     
     def _handle_click_detection(self, thumb_distances: Dict[str, float], 
                               current_time: float, finger_states: Dict[str, bool] = None) -> Dict[str, Any]:
-        """클릭 감지 (모드와 관계없이 실행)"""
+        """클릭 감지 (클릭 모드에서만 실행)"""
         actions = {
             'is_clicking': False,
             'is_right_clicking': False,
@@ -472,10 +461,7 @@ class HandTracker:
                 'pinky_extended': True
             }
         
-        # 약지와 새끼손가락이 펴져 있는지 확인
-        ring_pinky_extended = finger_states['ring_extended'] and finger_states['pinky_extended']
-        
-        # 엄지-검지 클릭 감지 (약지, 새끼손가락이 펴져 있어야 함)
+        # 엄지-검지 클릭 감지 (클릭 모드에서만)
         if thumb_distances['thumb_index_distance'] < config.gesture.click_threshold:
             # 손가락이 닿음
             if not self.thumb_index_touching:
@@ -484,29 +470,25 @@ class HandTracker:
         else:
             # 손가락이 떨어짐
             if self.thumb_index_touching:
-                # 약지와 새끼손가락이 펴져 있는지 확인
-                if ring_pinky_extended:
-                    # 터치가 끝났으므로 클릭 실행
-                    actions['is_clicking'] = True
-                    logger.debug(f"좌클릭 실행: 엄지-검지 떼어짐 (거리: {thumb_distances['thumb_index_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended})")
-                    
-                    # 더블클릭 감지
-                    if current_time - self.last_click_time < 0.5:
-                        self.click_count += 1
-                        if self.click_count >= 2:
-                            actions['is_double_clicking'] = True
-                            self.click_count = 0
-                            logger.debug("더블클릭 감지!")
-                    else:
-                        self.click_count = 1
-                    
-                    self.last_click_time = current_time
+                # 터치가 끝났으므로 클릭 실행
+                actions['is_clicking'] = True
+                logger.debug(f"좌클릭 실행: 엄지-검지 떼어짐 (거리: {thumb_distances['thumb_index_distance']:.3f})")
+                
+                # 더블클릭 감지
+                if current_time - self.last_click_time < 0.5:
+                    self.click_count += 1
+                    if self.click_count >= 2:
+                        actions['is_double_clicking'] = True
+                        self.click_count = 0
+                        logger.debug("더블클릭 감지!")
                 else:
-                    logger.debug(f"좌클릭 무시: 약지/새끼손가락이 접혀있음 (약지: {finger_states['ring_extended']}, 새끼: {finger_states['pinky_extended']})")
+                    self.click_count = 1
+                
+                self.last_click_time = current_time
             
             self.thumb_index_touching = False
         
-        # 엄지-중지 우클릭 감지 (약지, 새끼손가락이 펴져 있어야 함)
+        # 엄지-중지 우클릭 감지 (클릭 모드에서만)
         if thumb_distances['thumb_middle_distance'] < config.gesture.click_threshold:
             # 손가락이 닿음
             if not self.thumb_middle_touching:
@@ -515,13 +497,9 @@ class HandTracker:
         else:
             # 손가락이 떨어짐
             if self.thumb_middle_touching:
-                # 약지와 새끼손가락이 펴져 있는지 확인
-                if ring_pinky_extended:
-                    # 터치가 끝났으므로 우클릭 실행
-                    actions['is_right_clicking'] = True
-                    logger.debug(f"우클릭 실행: 엄지-중지 떼어짐 (거리: {thumb_distances['thumb_middle_distance']:.3f}, 약지/새끼 펴짐: {ring_pinky_extended})")
-                else:
-                    logger.debug(f"우클릭 무시: 약지/새끼손가락이 접혀있음 (약지: {finger_states['ring_extended']}, 새끼: {finger_states['pinky_extended']})")
+                # 터치가 끝났으므로 우클릭 실행
+                actions['is_right_clicking'] = True
+                logger.debug(f"우클릭 실행: 엄지-중지 떼어짐 (거리: {thumb_distances['thumb_middle_distance']:.3f})")
             
             self.thumb_middle_touching = False
         

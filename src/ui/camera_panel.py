@@ -177,7 +177,7 @@ class CameraPanel(ttk.LabelFrame):
                                 
                                 # 제스처 상태 로깅
                                 gesture_status = []
-                                if gesture_data.gesture_mode != "stop":
+                                if gesture_data.gesture_mode != "click":
                                     gesture_status.append(f"모드: {gesture_data.gesture_mode}")
                                 if gesture_data.is_clicking:
                                     gesture_status.append("클릭")
@@ -193,7 +193,7 @@ class CameraPanel(ttk.LabelFrame):
                                 if gesture_status:
                                     logger.info(f"제스처 감지: {', '.join(gesture_status)} - {hand_landmarks.handedness}손")
                                 else:
-                                    logger.debug(f"정지 모드 - {hand_landmarks.handedness}손")
+                                    logger.debug(f"클릭 모드 - {hand_landmarks.handedness}손")
                                 
                                 # 마우스 제어
                                 self.mouse_controller.update_mouse_position(
