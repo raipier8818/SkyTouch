@@ -100,12 +100,14 @@ class SkyTouchApp:
                 logger.warning("트래킹이 이미 실행 중입니다.")
                 return
                 
-            # 카메라가 해제된 상태라면 재초기화
-            if not self.camera_capture or not self.camera_capture.is_opened():
-                camera_config = self.config_manager.get_camera_config()
-                self.camera_capture = CameraCapture(camera_config)
+            # 카메라가 열려있지 않다면 열기
+            if not self.camera_capture.is_opened():
+                self.camera_capture._init_camera()
+                logger.info("카메라가 열렸습니다.")
             
+            # 상태를 먼저 설정하여 중복 실행 방지
             self.tracking_active = True
+            
             # 카메라 패널 시작
             if self.main_window and self.main_window.camera_panel:
                 self.main_window.camera_panel.start_display()
@@ -123,7 +125,9 @@ class SkyTouchApp:
                 logger.warning("트래킹이 이미 정지된 상태입니다.")
                 return
                 
+            # 상태를 먼저 설정하여 중복 실행 방지
             self.tracking_active = False
+            
             # 카메라 패널 정지 (카메라 해제는 패널에서 처리)
             if self.main_window and self.main_window.camera_panel:
                 self.main_window.camera_panel.stop_display()

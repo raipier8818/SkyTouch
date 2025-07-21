@@ -1,5 +1,5 @@
 """
-Settings dialog module for Hand Tracking Trackpad application.
+Settings dialogs module for SkyTouch application.
 """
 
 from .dialog import SettingsDialog

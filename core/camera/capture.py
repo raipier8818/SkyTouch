@@ -24,8 +24,8 @@ class CameraCapture:
         try:
             self.config = config
             self.cap = None
-            self._init_camera()
-            logger.info("카메라 캡처가 초기화되었습니다.")
+            # 카메라 자동 초기화 제거 - 사용자가 시작할 때 열림
+            logger.info("카메라 캡처가 초기화되었습니다. (카메라는 사용자가 시작할 때 열립니다)")
             
         except Exception as e:
             logger.error(f"카메라 캡처 초기화 실패: {e}")

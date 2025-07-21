@@ -7,7 +7,7 @@
  */
 
 QMainWindow {
-    background-color: rgba(16, 17, 20, 0.8); /* 투명도 80% */
+    background-color: rgba(28, 29, 33, 0.95); /* 설정창과 동일한 배경 */
     border: none;
 }
 
@@ -15,7 +15,7 @@ QWidget {
     font-family: 'SF Pro Text', 'Helvetica Neue', 'Arial', sans-serif;
     color: rgba(230, 230, 230, 0.9);
     border: none;
-    background: transparent;
+    background-color: rgba(28, 29, 33, 0.95);
 }
 
 /* 제목 라벨 - 숨김 */

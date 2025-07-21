@@ -1,5 +1,5 @@
 """
-Camera panel module for Hand Tracking Trackpad application.
+Camera panel module for SkyTouch application.
 """
 
 from .panel import CameraPanel
