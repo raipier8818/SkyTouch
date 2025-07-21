@@ -1,10 +1,10 @@
 """
-Status panel UI component for the Hand Tracking Trackpad application.
+Status panel for Hand Tracking Trackpad application.
 """
 import tkinter as tk
 from tkinter import ttk
 
-from ..utils.logger import get_logger
+from utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

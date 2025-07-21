@@ -1,15 +1,14 @@
 """
-Mouse control functionality for hand gestures.
+Mouse controller for Hand Tracking Trackpad application.
 """
 import pyautogui
-import numpy as np
 import time
 from typing import Tuple, Optional
 from dataclasses import dataclass
 
-from ..config import config
-from ..utils.logger import get_logger
-from ..utils.exceptions import HandTrackpadError
+from utils.logging.logger import get_logger
+from exceptions.base import MouseError
+from core.camera.capture import CameraCapture
 
 logger = get_logger(__name__)
 
@@ -31,23 +30,23 @@ class MouseState:
 class MouseController:
     """마우스 제어 클래스"""
     
-    def __init__(self, hand_tracker=None):
+    def __init__(self, camera_capture: CameraCapture):
         """
         마우스 컨트롤러 초기화
         
         Args:
-            hand_tracker: HandTracker 인스턴스 (실제 웹캠 해상도 가져오기용)
+            camera_capture: 카메라 캡처 객체 (실제 웹캠 해상도 가져오기용)
         """
         try:
             # 화면 크기 가져오기
             self.screen_width, self.screen_height = pyautogui.size()
             
-            # HandTracker 참조 저장 (실제 웹캠 해상도 가져오기용)
-            self.hand_tracker = hand_tracker
+            # 카메라 캡처 참조 저장
+            self.camera_capture = camera_capture
             
             # 마우스 설정
             pyautogui.FAILSAFE = True  # 마우스를 화면 모서리로 이동하면 중단
-            pyautogui.PAUSE = 0.001    # 각 동작 사이의 지연 시간 (더 빠르게)
+            pyautogui.PAUSE = 0.001    # 각 동작 사이의 지연 시간
             
             # macOS에서 키보드 입력 안정성을 위한 설정
             pyautogui.MINIMUM_DURATION = 0.1  # 최소 키 입력 지속 시간
@@ -59,12 +58,6 @@ class MouseController:
             
             # 초기화 플래그
             self.is_initialized = False
-            
-            # 제스처 모드 관련 속성들
-            self.gesture_history = []
-            self.current_gesture_mode = "click"
-            self.mode_start_time = time.time()
-            self.is_mode_stable = False
             
             # 부드러운 이동을 위한 변수들
             self.smoothed_x = 0.0
@@ -87,9 +80,11 @@ class MouseController:
             
         except Exception as e:
             logger.error(f"마우스 컨트롤러 초기화 실패: {e}")
-            raise HandTrackpadError(f"마우스 컨트롤러 초기화 실패: {e}")
+            raise MouseError(f"마우스 컨트롤러 초기화 실패: {e}")
     
-    def update_mouse_position(self, palm_center: list, gesture_mode: str = "click", smoothing: float = 0.5) -> None:
+    def update_mouse_position(self, palm_center: list, gesture_mode: str = "click", 
+                            smoothing: float = 0.5, sensitivity: float = 1.5,
+                            invert_x: bool = False, invert_y: bool = False) -> None:
         """
         손바닥 위치에 따라 마우스 커서 위치 업데이트
         
@@ -97,6 +92,9 @@ class MouseController:
             palm_center: 손바닥 중심점 [x, y, z]
             gesture_mode: 제스처 모드 ("click", "scroll", "swipe", "move")
             smoothing: 스무딩 팩터 (0.0 ~ 1.0)
+            sensitivity: 감도
+            invert_x: X축 좌우 반전
+            invert_y: Y축 상하 반전
         """
         try:
             # 현재 손바닥 위치 (0~1 범위)
@@ -104,9 +102,9 @@ class MouseController:
             current_palm_y = palm_center[1]
             
             # 좌우/상하 반전 적용
-            if config.gesture.invert_x:
+            if invert_x:
                 current_palm_x = 1.0 - current_palm_x
-            if config.gesture.invert_y:
+            if invert_y:
                 current_palm_y = 1.0 - current_palm_y
             
             # 첫 번째 호출이면 초기화
@@ -146,20 +144,19 @@ class MouseController:
                 return
             
             # 실제 웹캠 해상도 기반 1:1 비례 감도 계산
-            if self.hand_tracker:
-                camera_width, camera_height = self.hand_tracker.get_actual_camera_resolution()
+            if self.camera_capture:
+                camera_width, camera_height = self.camera_capture.get_actual_resolution()
             else:
-                camera_width = config.camera.width
-                camera_height = config.camera.height
+                camera_width = 480
+                camera_height = 360
             
             # 웹캠에서 1cm 이동할 때 화면에서도 같은 비율로 이동하도록 감도 계산
-            # 웹캠 좌표 (0~1)를 화면 좌표로 매핑할 때 비율 유지
             auto_sensitivity_x = self.screen_width / camera_width
             auto_sensitivity_y = self.screen_height / camera_height
             
             # 사용자 설정 감도와 자동 계산 감도를 곱함
-            final_sensitivity_x = auto_sensitivity_x * config.gesture.sensitivity
-            final_sensitivity_y = auto_sensitivity_y * config.gesture.sensitivity
+            final_sensitivity_x = auto_sensitivity_x * sensitivity
+            final_sensitivity_y = auto_sensitivity_y * sensitivity
             
             # 화면 크기에 비례한 이동량 계산 (부드러운 값 사용)
             move_x = int(self.smoothed_x * self.screen_width * final_sensitivity_x)
@@ -254,7 +251,7 @@ class MouseController:
     
     def handle_scroll(self, is_scrolling: bool, scroll_direction: str) -> None:
         """
-        스크롤 제스처 처리 (더 매끄럽게)
+        스크롤 제스처 처리
         
         Args:
             is_scrolling: 스크롤 상태
@@ -262,7 +259,7 @@ class MouseController:
         """
         try:
             if is_scrolling:
-                # 스크롤 방향에 따라 스크롤 실행 (더 부드럽게)
+                # 스크롤 방향에 따라 스크롤 실행
                 scroll_amount = 2  # 더 작은 스크롤 양
                 
                 if scroll_direction == "up":
@@ -298,7 +295,7 @@ class MouseController:
         """
         try:
             if is_swiping and not self.current_state.is_swiping:
-                # 맥북 제스처 단축키 (time.sleep 제거하여 카메라 끊김 방지)
+                # 맥북 제스처 단축키
                 if swipe_direction == "left":
                     # 왼쪽으로 스와이프: 다음 데스크탑
                     try:
@@ -397,4 +394,14 @@ class MouseController:
             logger.info("마우스 컨트롤러 설정이 업데이트되었습니다.")
             
         except Exception as e:
-            logger.error(f"마우스 컨트롤러 설정 업데이트 실패: {e}") 
+            logger.error(f"마우스 컨트롤러 설정 업데이트 실패: {e}")
+    
+    def cleanup(self) -> None:
+        """리소스 정리"""
+        try:
+            # 마우스 상태 초기화
+            self.reset_state()
+            logger.info("마우스 컨트롤러 리소스가 정리되었습니다.")
+            
+        except Exception as e:
+            logger.error(f"마우스 컨트롤러 리소스 정리 중 오류: {e}") 

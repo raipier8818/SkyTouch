@@ -1,5 +1,5 @@
 """
-Camera panel UI component for displaying webcam feed.
+Camera panel for Hand Tracking Trackpad application.
 """
 import tkinter as tk
 from tkinter import ttk
@@ -7,10 +7,13 @@ import cv2
 from PIL import Image, ImageTk
 import threading
 import time
-from typing import Optional, Callable
+from typing import Optional
 
-from ..utils.logger import get_logger
-from ..config import config
+from utils.logging.logger import get_logger
+from core.camera import CameraCapture
+from core.hand_tracking import HandDetector
+from core.gesture import GestureDetector
+from core.mouse import MouseController
 
 logger = get_logger(__name__)
 
@@ -18,29 +21,33 @@ logger = get_logger(__name__)
 class CameraPanel(ttk.LabelFrame):
     """카메라 패널 위젯"""
     
-    def __init__(self, parent, camera_callback: Optional[Callable] = None, mouse_controller=None, control_panel=None):
+    def __init__(self, parent, camera_capture: CameraCapture, hand_detector: HandDetector,
+                 gesture_detector: GestureDetector, mouse_controller: MouseController,
+                 config_manager=None, control_panel=None):
         """
         카메라 패널 초기화
         
         Args:
             parent: 부모 위젯
-            camera_callback: 카메라 프레임 처리 콜백
+            camera_capture: 카메라 캡처 객체
+            hand_detector: 손 감지기
+            gesture_detector: 제스처 감지기
             mouse_controller: 마우스 컨트롤러
             control_panel: 제어 패널 (로딩 상태 관리용)
         """
         super().__init__(parent, text="카메라 화면", padding="10")
         
-        self.camera_callback = camera_callback
+        # 컴포넌트 저장
+        self.camera_capture = camera_capture
+        self.hand_detector = hand_detector
+        self.gesture_detector = gesture_detector
         self.mouse_controller = mouse_controller
+        self.config_manager = config_manager
         self.control_panel = control_panel
         
         # 카메라 관련 변수
-        self.cap = None
         self.is_displaying = False
         self.display_thread = None
-        
-        # 손 트래커
-        self.hand_tracker = None
         
         self.create_widgets()
     
@@ -131,13 +138,9 @@ class CameraPanel(ttk.LabelFrame):
         try:
             logger.info("카메라 디스플레이 루프 시작")
             
-            # 카메라 초기화
-            self.cap = cv2.VideoCapture(0)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera.width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera.height)
-            
-            if not self.cap.isOpened():
-                logger.error("카메라를 열 수 없습니다")
+            # 카메라가 열려있는지 확인
+            if not self.camera_capture.is_opened():
+                logger.error("카메라가 열려있지 않습니다")
                 self.camera_label.config(text="카메라를 열 수 없습니다")
                 # 로딩 상태 해제
                 if self.control_panel:
@@ -151,29 +154,28 @@ class CameraPanel(ttk.LabelFrame):
                 self.control_panel.set_loading_state(False)
             
             while self.is_displaying:
-                ret, frame = self.cap.read()
-                if not ret:
+                # 카메라에서 프레임 가져오기
+                frame = self.camera_capture.get_frame()
+                if frame is None:
                     continue
                 
-                # 프레임 처리 (콜백이 있으면 호출)
-                if self.camera_callback:
-                    frame = self.camera_callback(frame)
-                
                 # 손 트래킹 및 제스처 처리
-                if hasattr(self, 'hand_tracker') and self.hand_tracker and self.mouse_controller:
+                if (self.hand_detector and self.gesture_detector and 
+                    self.mouse_controller and self.is_displaying):
                     try:
                         # 손 랜드마크 감지
-                        hand_landmarks_list = self.hand_tracker.process_frame(frame)
+                        hand_landmarks_list = self.hand_detector.detect_hands(frame)
                         
                         if hand_landmarks_list:
                             logger.debug(f"손 감지됨: {len(hand_landmarks_list)}개")
                             for hand_landmarks in hand_landmarks_list:
                                 # 랜드마크 그리기
-                                frame = self.hand_tracker.draw_landmarks(frame, hand_landmarks)
-                                logger.debug(f"랜드마크 그리기 완료: {hand_landmarks.handedness}")
+                                frame = self.hand_detector.draw_landmarks(frame, hand_landmarks)
+                                logger.debug(f"랜드마크 그리기 완료: {hand_landmarks.handedness}손")
+                                logger.info(f"랜드마크 그리기 완료: {hand_landmarks.handedness}손 (디버그)")
                                 
                                 # 제스처 감지
-                                gesture_data = self.hand_tracker.detect_gestures(hand_landmarks)
+                                gesture_data = self.gesture_detector.detect_gestures(hand_landmarks)
                                 
                                 # 제스처 상태 로깅
                                 gesture_status = []
@@ -195,11 +197,26 @@ class CameraPanel(ttk.LabelFrame):
                                 else:
                                     logger.debug(f"클릭 모드 - {hand_landmarks.handedness}손")
                                 
+                                # 설정에서 값 가져오기
+                                invert_x = False
+                                invert_y = False
+                                smoothing = 0.5
+                                sensitivity = 1.5
+                                if self.config_manager:
+                                    gesture_config = self.config_manager.get_gesture_config()
+                                    invert_x = gesture_config.get('invert_x', False)
+                                    invert_y = gesture_config.get('invert_y', False)
+                                    smoothing = gesture_config.get('smoothing_factor', 0.5)
+                                    sensitivity = gesture_config.get('sensitivity', 1.5)
+                                
                                 # 마우스 제어
                                 self.mouse_controller.update_mouse_position(
                                     gesture_data.palm_center,
                                     gesture_mode=gesture_data.gesture_mode,
-                                    smoothing=config.gesture.smoothing_factor
+                                    smoothing=smoothing,
+                                    sensitivity=sensitivity,
+                                    invert_x=invert_x,
+                                    invert_y=invert_y
                                 )
                                 
                                 # 제스처 처리
@@ -213,7 +230,7 @@ class CameraPanel(ttk.LabelFrame):
                     except Exception as e:
                         logger.error(f"손 트래킹 처리 중 오류: {e}")
                 else:
-                    logger.debug("손 트래커 또는 마우스 컨트롤러가 설정되지 않음")
+                    logger.debug("손 감지기 또는 제스처 감지기가 설정되지 않음")
                 
                 # OpenCV BGR을 RGB로 변환
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -224,7 +241,8 @@ class CameraPanel(ttk.LabelFrame):
                 # GUI 스레드에서 안전하게 업데이트 (PIL Image 전달)
                 self.camera_label.after(0, self._update_image, pil_image)
                 
-                time.sleep(config.camera.frame_delay)  # 설정에서 프레임 딜레이 가져오기
+                # 프레임 딜레이
+                time.sleep(0.03)  # 약 30 FPS
             
             logger.info("카메라 디스플레이 루프 종료")
             
@@ -234,21 +252,6 @@ class CameraPanel(ttk.LabelFrame):
             if self.control_panel:
                 self.control_panel.set_loading_state(False)
         finally:
-            # 카메라 리소스 안전하게 해제
-            try:
-                if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
-                    self.cap.release()
-                    self.cap = None
-                    logger.info("카메라 리소스 해제됨")
-            except Exception as e:
-                logger.error(f"카메라 리소스 해제 중 오류: {e}")
-            
-            # 모든 OpenCV 창 닫기
-            try:
-                cv2.destroyAllWindows()
-            except Exception as e:
-                logger.error(f"OpenCV 창 닫기 중 오류: {e}")
-            
             logger.info("카메라 디스플레이 루프 완전 종료")
     
     def _update_image(self, pil_image) -> None:
@@ -294,16 +297,6 @@ class CameraPanel(ttk.LabelFrame):
             logger.error(f"이미지 리사이즈 중 오류: {e}")
             return ImageTk.PhotoImage(pil_image)
     
-    def set_hand_tracker(self, hand_tracker) -> None:
-        """
-        손 트래커 설정
-        
-        Args:
-            hand_tracker: 손 트래커 객체
-        """
-        self.hand_tracker = hand_tracker
-        logger.info("카메라 패널에 손 트래커가 설정되었습니다.")
-    
     def update_status(self, status: str, color: str = "black") -> None:
         """
         상태 업데이트
@@ -319,17 +312,6 @@ class CameraPanel(ttk.LabelFrame):
         try:
             # 설정값은 항상 업데이트 (카메라 상태와 관계없이)
             logger.info("카메라 패널 설정이 업데이트되었습니다.")
-            
-            # 카메라가 열려있을 때만 카메라 하드웨어 설정 업데이트
-            if (hasattr(self, 'cap') and 
-                self.cap is not None and 
-                hasattr(self.cap, 'isOpened') and 
-                self.cap.isOpened()):
-                
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera.width)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera.height)
-                self.cap.set(cv2.CAP_PROP_FPS, config.camera.fps)
-                logger.debug("카메라 하드웨어 설정이 업데이트되었습니다.")
             
         except Exception as e:
             logger.error(f"카메라 패널 설정 업데이트 실패: {e}") 

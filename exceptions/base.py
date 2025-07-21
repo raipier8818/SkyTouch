@@ -1,5 +1,5 @@
 """
-Custom exceptions for the Hand Tracking Trackpad application.
+Base exception classes for the Hand Tracking Trackpad application.
 """
 
 
@@ -30,4 +30,9 @@ class ConfigError(HandTrackpadError):
 
 class UIError(HandTrackpadError):
     """UI 관련 예외"""
+    pass
+
+
+class MouseError(HandTrackpadError):
+    """마우스 제어 관련 예외"""
     pass 

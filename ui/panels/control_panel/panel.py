@@ -1,11 +1,11 @@
 """
-Control panel UI component for the Hand Tracking Trackpad application.
+Control panel for Hand Tracking Trackpad application.
 """
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
 
-from ..utils.logger import get_logger
+from utils.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,8 +45,11 @@ class ControlPanel(ttk.Frame):
     
     def toggle_tracking(self) -> None:
         """트래킹 토글"""
+        logger.debug(f"토글 버튼 클릭: is_loading={self.is_loading}, is_tracking={self.is_tracking}")
         if self.on_toggle and not self.is_loading:
             self.on_toggle()
+        else:
+            logger.debug("토글 버튼 클릭 무시됨 (로딩 중이거나 콜백 없음)")
     
     def set_tracking_state(self, is_tracking: bool) -> None:
         """
@@ -69,13 +72,17 @@ class ControlPanel(ttk.Frame):
         Args:
             is_loading: 로딩 중 여부
         """
+        logger.debug(f"로딩 상태 변경: {self.is_loading} -> {is_loading}")
         self.is_loading = is_loading
         
         if is_loading:
             self.toggle_button.config(text="⏳ 초기화 중...", state="disabled")
+            logger.debug("버튼 비활성화됨")
         else:
             # 로딩이 끝나면 현재 트래킹 상태에 따라 버튼 상태 복원
             if self.is_tracking:
                 self.toggle_button.config(text="⏹ 정지", style="Danger.TButton", state="normal")
+                logger.debug("버튼 활성화됨 (정지 상태)")
             else:
-                self.toggle_button.config(text="▶ 시작", style="Accent.TButton", state="normal") 
+                self.toggle_button.config(text="▶ 시작", style="Accent.TButton", state="normal")
+                logger.debug("버튼 활성화됨 (시작 상태)") 
