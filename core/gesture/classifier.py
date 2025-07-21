@@ -52,8 +52,8 @@ class GestureClassifier:
         Returns:
             제스처 모드
         """
-        # 클릭 모드: 약지와 새끼손가락이 펴진 상태 (다른 손가락은 상관없음)
-        if (finger_state.ring_extended and finger_state.pinky_extended):
+        # 클릭 모드: 새끼손가락이 펴진 상태 (다른 손가락은 상관없음)
+        if (finger_state.pinky_extended):
             return "click"
         
         # 스와이프 모드: 주먹 (모든 손가락을 접은 상태)
@@ -61,10 +61,17 @@ class GestureClassifier:
                      finger_state.ring_extended, finger_state.pinky_extended]):
             return "swipe"
         
-        # 스크롤 모드: 검지와 중지를 펴진 상태
+        # 스크롤 모드: 검지와 중지를 펴진 상태 (엄격한 조건)
         elif (finger_state.index_extended and finger_state.middle_extended and 
               not finger_state.ring_extended and not finger_state.pinky_extended):
-            return "scroll"
+            # 중지가 손바닥에 닿지 않았는지 추가 확인
+            if thumb_distance.thumb_middle_distance > self.click_threshold:
+                logger.debug("스크롤 모드 감지: 검지+중지 펴짐, 중지 터치 없음")
+                return "scroll"
+            else:
+                logger.debug("중지가 손바닥에 닿아서 스크롤 모드 무효화")
+                # 중지가 닿으면 클릭 모드로 처리
+                return "click"
         
         # 이동 모드: 검지만 편 상태
         elif (finger_state.index_extended and not finger_state.middle_extended and 

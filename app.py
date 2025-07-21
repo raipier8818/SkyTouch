@@ -59,7 +59,7 @@ class SkyTouchApp:
             self.camera_capture = CameraCapture(camera_config)
             self.hand_detector = HandDetector(self.config_manager.get_hand_tracking_config())
             self.gesture_detector = GestureDetector(self.config_manager.get_gesture_config())
-            self.mouse_controller = MouseController(self.camera_capture)
+            self.mouse_controller = MouseController(self.camera_capture, self.config_manager)
             self.qt_app = QApplication(sys.argv)
             self.main_window = IOSMainWindow(self)
             
@@ -102,8 +102,11 @@ class SkyTouchApp:
                 
             # 카메라가 열려있지 않다면 열기
             if not self.camera_capture.is_opened():
+                # 최신 설정으로 카메라 초기화
+                camera_config = self.config_manager.get_camera_config()
+                self.camera_capture.config = camera_config  # 설정 업데이트
                 self.camera_capture._init_camera()
-                logger.info("카메라가 열렸습니다.")
+                logger.info(f"카메라가 열렸습니다. (해상도: {camera_config.get('width')}x{camera_config.get('height')}, FPS: {camera_config.get('fps')})")
             
             # 상태를 먼저 설정하여 중복 실행 방지
             self.tracking_active = True

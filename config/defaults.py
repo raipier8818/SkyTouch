@@ -20,6 +20,7 @@ DEFAULT_CONFIG = {
         "click_threshold": 0.12,
         "scroll_distance_threshold": 0.003,
         "scroll_required_frames": 1,
+        "scroll_amount": 5,
         "swipe_distance_threshold": 0.008,
         "swipe_required_frames": 3,
         "swipe_cooldown": 0.5,

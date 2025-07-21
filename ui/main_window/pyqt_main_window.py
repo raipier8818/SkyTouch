@@ -101,6 +101,6 @@ class IOSMainWindow(QMainWindow):
         """설정 창 열기"""
         try:
             dlg = SettingsDialog(self.app_logic, self)
-            dlg.exec_()
+            dlg.exec_() 
         except Exception as e:
             logger.error(f"설정 창 열기 실패: {e}") 

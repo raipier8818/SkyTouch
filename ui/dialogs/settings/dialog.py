@@ -47,7 +47,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(self.mode_tab, "모드별 설정")
 
         layout.addWidget(tabs)
-
+        
         # 저장 버튼
         save_btn = QPushButton("저장")
         save_btn.clicked.connect(self.save_settings)

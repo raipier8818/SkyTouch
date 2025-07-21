@@ -236,7 +236,7 @@ class GestureDetector:
                 len(set(self.scroll_direction_history)) == 1):
                 # 모든 프레임이 같은 방향이면 스크롤 실행
                 scroll_direction = self.scroll_direction_history[0]
-                logger.debug(f"스크롤 감지: 방향={scroll_direction}, 연속프레임={self.scroll_frame_count}")
+                logger.info(f"스크롤 감지 성공: 방향={scroll_direction}, 연속프레임={self.scroll_frame_count}, 히스토리={self.scroll_direction_history}")
                 
                 # 스크롤 감지 후 초기화
                 self.scroll_palm_position = None

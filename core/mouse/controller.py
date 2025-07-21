@@ -30,12 +30,13 @@ class MouseState:
 class MouseController:
     """마우스 제어 클래스"""
     
-    def __init__(self, camera_capture: CameraCapture):
+    def __init__(self, camera_capture: CameraCapture, config_manager):
         """
         마우스 컨트롤러 초기화
         
         Args:
             camera_capture: 카메라 캡처 객체 (실제 웹캠 해상도 가져오기용)
+            config_manager: 설정 관리자
         """
         try:
             # 화면 크기 가져오기
@@ -43,6 +44,9 @@ class MouseController:
             
             # 카메라 캡처 참조 저장
             self.camera_capture = camera_capture
+            
+            # 설정 관리자 저장
+            self.config_manager = config_manager
             
             # 마우스 설정
             pyautogui.FAILSAFE = True  # 마우스를 화면 모서리로 이동하면 중단
@@ -251,7 +255,7 @@ class MouseController:
     
     def handle_scroll(self, is_scrolling: bool, scroll_direction: str) -> None:
         """
-        스크롤 제스처 처리
+        스크롤 제스처 처리 (PyAutoGUI 사용)
         
         Args:
             is_scrolling: 스크롤 상태
@@ -259,21 +263,26 @@ class MouseController:
         """
         try:
             if is_scrolling:
-                # 스크롤 방향에 따라 스크롤 실행
-                scroll_amount = 2  # 더 작은 스크롤 양
+                # 설정에서 스크롤 정도 가져오기
+                gesture_config = self.config_manager.get_gesture_config()
+                scroll_amount = gesture_config.get('scroll_amount', 5)
+                logger.info(f"스크롤 시도: {scroll_direction}, 양: {scroll_amount}")
                 
                 if scroll_direction == "up":
-                    pyautogui.scroll(scroll_amount)  # 위로 스크롤
-                    logger.debug("위로 스크롤")
+                    pyautogui.scroll(scroll_amount)
+                    logger.info(f"위로 스크롤: {scroll_amount}")
+                    
                 elif scroll_direction == "down":
-                    pyautogui.scroll(-scroll_amount)  # 아래로 스크롤
-                    logger.debug("아래로 스크롤")
+                    pyautogui.scroll(-scroll_amount)
+                    logger.info(f"아래로 스크롤: -{scroll_amount}")
+                    
                 elif scroll_direction == "left":
-                    pyautogui.hscroll(-scroll_amount)  # 왼쪽으로 스크롤
-                    logger.debug("왼쪽으로 스크롤")
+                    pyautogui.hscroll(-scroll_amount)
+                    logger.info(f"왼쪽으로 스크롤: -{scroll_amount}")
+                    
                 elif scroll_direction == "right":
-                    pyautogui.hscroll(scroll_amount)  # 오른쪽으로 스크롤
-                    logger.debug("오른쪽으로 스크롤")
+                    pyautogui.hscroll(scroll_amount)
+                    logger.info(f"오른쪽으로 스크롤: {scroll_amount}")
                 
                 self.current_state.is_scrolling = True
                 self.current_state.scroll_direction = scroll_direction
@@ -284,6 +293,11 @@ class MouseController:
                 
         except Exception as e:
             logger.error(f"스크롤 처리 중 오류: {e}")
+    
+    def _fallback_scroll(self, scroll_direction: str) -> None:
+        """fallback 스크롤 (더 이상 사용하지 않음)"""
+        logger.warning("fallback 스크롤이 호출되었지만 더 이상 사용되지 않습니다.")
+        pass
     
     def handle_swipe(self, is_swiping: bool, swipe_direction: str) -> None:
         """
