@@ -85,11 +85,14 @@ class GestureDetector:
                 stable_gesture_mode, thumb_distance, current_time, finger_state, landmarks
             )
             
-            return GestureData(
-                palm_center=palm_center,
+            # 기존 코드에서 gesture_mode, gesture_actions 등 생성 후
+            # palm_center 좌표의 x값을 항상 좌우반전하여 반환
+            gesture_data = GestureData(
+                palm_center=[1.0 - palm_center[0], palm_center[1], palm_center[2]],  # x좌표 좌우반전
                 gesture_mode=stable_gesture_mode,
                 **gesture_actions
             )
+            return gesture_data
             
         except Exception as e:
             logger.error(f"제스처 감지 중 오류: {e}")

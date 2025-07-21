@@ -13,3 +13,4 @@ psutil>=5.9.0  # For system monitoring in debug panel
 # pytest>=7.0.0
 # black>=23.0.0
 # flake8>=6.0.0 
+qtmodern 

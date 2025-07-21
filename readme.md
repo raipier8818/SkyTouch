@@ -47,7 +47,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. 애플리케이션 실행
+### 4. qtmodern 설치 (프레임리스+모던 다크 윈도우)
+```bash
+pip install qtmodern
+```
+
+### 5. 애플리케이션 실행
 ```bash
 python main.py
 ```

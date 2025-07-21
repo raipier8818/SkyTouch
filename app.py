@@ -9,10 +9,14 @@ from core.hand_tracking.detector import HandDetector
 from core.gesture.detector import GestureDetector
 from core.mouse.controller import MouseController
 from core.camera.capture import CameraCapture
-from ui.main_window.window import MainWindow
 from config.manager import ConfigManager
 from utils.logging.logger import get_logger
 from exceptions.base import HandTrackpadError
+import sys
+from PyQt5.QtWidgets import QApplication
+import qtmodern.styles
+import qtmodern.windows
+from ui.main_window.pyqt_main_window import IOSMainWindow
 
 logger = get_logger(__name__)
 
@@ -53,27 +57,11 @@ class HandTrackpadApp:
             # 카메라 캡처 초기화
             camera_config = self.config_manager.get_camera_config()
             self.camera_capture = CameraCapture(camera_config)
-            
-            # 손 감지기 초기화
-            hand_tracking_config = self.config_manager.get_hand_tracking_config()
-            self.hand_detector = HandDetector(hand_tracking_config)
-            
-            # 제스처 감지기 초기화
-            gesture_config = self.config_manager.get_gesture_config()
-            self.gesture_detector = GestureDetector(gesture_config)
-            
-            # 마우스 컨트롤러 초기화
+            self.hand_detector = HandDetector(self.config_manager.get_hand_tracking_config())
+            self.gesture_detector = GestureDetector(self.config_manager.get_gesture_config())
             self.mouse_controller = MouseController(self.camera_capture)
-            
-            # 메인 윈도우 초기화
-            self.main_window = MainWindow(
-                camera_capture=self.camera_capture,
-                hand_detector=self.hand_detector,
-                gesture_detector=self.gesture_detector,
-                mouse_controller=self.mouse_controller,
-                config_manager=self.config_manager,
-                tracking_callback=self.tracking_loop
-            )
+            self.qt_app = QApplication(sys.argv)
+            self.main_window = IOSMainWindow(self)
             
             logger.info("모든 컴포넌트가 초기화되었습니다.")
             
@@ -131,7 +119,9 @@ class HandTrackpadApp:
         """애플리케이션 실행"""
         try:
             logger.info("애플리케이션을 실행합니다.")
-            self.main_window.run()
+            self.main_window.camera_panel.start_display()
+            self.main_window.show()
+            sys.exit(self.qt_app.exec_())
             
         except Exception as e:
             logger.error(f"애플리케이션 실행 중 오류: {e}")
@@ -152,3 +142,10 @@ class HandTrackpadApp:
             
         except Exception as e:
             logger.error(f"리소스 정리 중 오류: {e}") 
+
+    def get_camera_frame(self):
+        if self.camera_capture:
+            ret, frame = self.camera_capture.read()
+            if ret:
+                return frame
+        return None 
