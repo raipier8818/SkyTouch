@@ -97,6 +97,11 @@ class SkyTouchApp:
         """트래킹 시작"""
         try:
             if not self.tracking_active:
+                # 카메라가 해제된 상태라면 재초기화
+                if not self.camera_capture or not self.camera_capture.is_opened():
+                    camera_config = self.config_manager.get_camera_config()
+                    self.camera_capture = CameraCapture(camera_config)
+                
                 self.tracking_active = True
                 # 카메라 패널 시작
                 if self.main_window and self.main_window.camera_panel:
@@ -112,15 +117,9 @@ class SkyTouchApp:
         try:
             if self.tracking_active:
                 self.tracking_active = False
-                # 카메라 패널 정지
+                # 카메라 패널 정지 (카메라 해제는 패널에서 처리)
                 if self.main_window and self.main_window.camera_panel:
                     self.main_window.camera_panel.stop_display()
-                # 카메라 재초기화 (리소스 해제 후 다시 준비)
-                if self.camera_capture:
-                    self.camera_capture.release()
-                    # 카메라 재초기화
-                    camera_config = self.config_manager.get_camera_config()
-                    self.camera_capture = CameraCapture(camera_config)
                 logger.info("트래킹이 정지되었습니다.")
             
         except Exception as e:

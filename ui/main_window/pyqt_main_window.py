@@ -200,9 +200,9 @@ class CameraPanel(QWidget):
 
     def stop_display(self):
         self.is_displaying = False
-        # 카메라 리소스 완전 해제
-        if hasattr(self.app_logic, 'camera_capture') and self.app_logic.camera_capture:
-            self.app_logic.camera_capture.release()
+        # 스레드가 완전히 종료될 때까지 기다림
+        if self.display_thread and self.display_thread.is_alive():
+            self.display_thread.join(timeout=1.0)  # 최대 1초 대기
         # 초기 화면으로 복원
         self.camera_label.setText("카메라 화면")
         self.camera_label.setPixmap(QPixmap())  # 픽스맵 초기화
@@ -254,9 +254,10 @@ class CameraPanel(QWidget):
         # 루프 종료 시 초기 화면으로 복원 및 카메라 리소스 해제
         self.camera_label.setText("카메라 화면")
         self.camera_label.setPixmap(QPixmap())
-        # 카메라 리소스 해제
+        # 카메라 리소스 해제 (스레드 종료 시)
         if hasattr(self.app_logic, 'camera_capture') and self.app_logic.camera_capture:
             self.app_logic.camera_capture.release()
+            print("카메라 리소스가 해제되었습니다.")  # 디버깅용
 
 class IOSMainWindow(QMainWindow):
     def __init__(self, app_logic):
