@@ -12,8 +12,10 @@ from core.camera.capture import CameraCapture
 from config.manager import ConfigManager
 from utils.logging.logger import get_logger
 from exceptions.base import HandTrackpadError
-from PyQt5.QtWidgets import QApplication
 import sys
+from PyQt5.QtWidgets import QApplication
+import qtmodern.styles
+import qtmodern.windows
 from ui.main_window.pyqt_main_window import IOSMainWindow
 
 logger = get_logger(__name__)

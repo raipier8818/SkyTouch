@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QDialog, QLineEdit, QFormLayout, QTabWidget, QCheckBox, QComboBox
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QDialog, QLineEdit, QFormLayout, QTabWidget, QCheckBox, QComboBox, QSizePolicy
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage
 import cv2
@@ -10,14 +10,123 @@ from core.hand_tracking.detector import HandDetector
 from core.gesture.detector import GestureDetector
 from core.mouse.controller import MouseController
 
+qss = """
+/*
+ * Professional & Modern Dark Theme
+ *
+ * - 콘트라스트가 명확한 정제된 다크 테마.
+ * - 각 영역을 명확한 '카드' 형태로 분리하여 구조적 안정감 부여.
+ * - 인터랙티브 요소에 하이라이트 컬러를 적용하여 직관성 강화.
+ * - 현대적인 UI 트렌드를 반영한 탭, 버튼 디자인.
+ */
+
+QMainWindow {
+    background-color: #101114; /* 매우 어두운 배경색 */
+}
+
+QWidget {
+    font-family: 'SF Pro Text', 'Helvetica Neue', 'Arial', sans-serif;
+    color: #E6E6E6;
+    border: none;
+}
+
+/* 패널 기본 스타일 (트랙패드, 카메라, 컨트롤) */
+#TrackpadPanel, #CameraPanel, #ControlPanel {
+    background-color: #1C1D21;
+    border-radius: 12px;
+}
+
+/* 제목 라벨 */
+#TitleLabel {
+    font-size: 24px;
+    font-weight: 600;
+    color: #8A8B90; /* 너무 튀지 않는 색상 */
+}
+
+/* 카메라 영상이 표시될 라벨 */
+#CameraLabel {
+    border-radius: 12px;
+}
+
+/* 설정 버튼 */
+#SettingsButton {
+    background-color: #323337;
+    color: #E6E6E6;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 8px;
+}
+
+#SettingsButton:hover {
+    background-color: #3F4045;
+}
+
+/* --- 설정창 (Dialog) 스타일 --- */
+QDialog {
+    background-color: #1C1D21;
+}
+
+QLineEdit, QComboBox {
+    background-color: #2D2E32;
+    border: 1px solid #3A3B3F;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+QLineEdit:focus, QComboBox:focus {
+    border-color: #0A84FF; /* 포커스 시 iOS 블루 컬러 */
+}
+
+/* 설정창 탭 위젯 */
+QTabWidget::pane {
+    border: none;
+}
+
+QTabBar::tab {
+    min-width: 60px;         /* 탭 최소 너비 */
+    padding: 10px;       /* 좌우 패딩 넉넉하게 */
+    font-size: 15px;
+    font-weight: 500;
+    color: #8A8B90;
+    border-bottom: 2px solid transparent;
+}
+
+QTabBar::tab:hover {
+    color: #E6E6E6;
+}
+
+QTabBar::tab:selected {
+    color: #FFFFFF;
+    font-weight: 500;
+    border-bottom: 2px solid #0A84FF; /* 선택된 탭에 파란색 밑줄 */
+}
+
+/* 설정창 저장 버튼 (기본 QPushButton) */
+QDialog QPushButton {
+    background-color: #0A84FF; /* iOS 블루 */
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 12px 0;
+}
+
+QDialog QPushButton:hover {
+    background-color: #0070D9; /* 살짝 어둡게 */
+}
+"""
+
 class SettingsDialog(QDialog):
     def __init__(self, app_logic, parent=None):
         super().__init__(parent)
         self.setWindowTitle("설정")
+        self.resize(400, 100)  # ← 여기서 기본 크기 설정!
         self.app_logic = app_logic
         self.config_manager = app_logic.config_manager
         layout = QVBoxLayout(self)
         tabs = QTabWidget()
+        tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # 카메라 탭
         cam_tab = QWidget()
@@ -65,39 +174,53 @@ class SettingsDialog(QDialog):
 
         # 모드별 탭
         mode_tab = QWidget()
-        mode_form = QFormLayout(mode_tab)
+        mode_layout = QVBoxLayout(mode_tab)
+        mode_tabs = QTabWidget()
         # 클릭 모드
         self.click_threshold_mode = QLineEdit(str(gesture_cfg.get('click_threshold', '')))
         self.double_click_time = QLineEdit(str(gesture_cfg.get('double_click_time', '')))
         self.click_stabilization_time = QLineEdit(str(gesture_cfg.get('mode_stabilization_time', '')))
-        mode_form.addRow("[클릭] 임계값", self.click_threshold_mode)
-        mode_form.addRow("[클릭] 더블클릭 시간", self.double_click_time)
-        mode_form.addRow("[클릭] 모드 안정화 시간", self.click_stabilization_time)
+        click_tab = QWidget()
+        click_form = QFormLayout(click_tab)
+        click_form.addRow("[클릭] 임계값", self.click_threshold_mode)
+        click_form.addRow("[클릭] 더블클릭 시간", self.double_click_time)
+        click_form.addRow("[클릭] 모드 안정화 시간", self.click_stabilization_time)
+        mode_tabs.addTab(click_tab, "클릭")
         # 스크롤 모드
         self.scroll_distance_threshold = QLineEdit(str(gesture_cfg.get('scroll_distance_threshold', '')))
         self.scroll_required_frames = QLineEdit(str(gesture_cfg.get('scroll_required_frames', '')))
         self.invert_scroll_x = QCheckBox(); self.invert_scroll_x.setChecked(gesture_cfg.get('invert_scroll_x', False))
         self.invert_scroll_y = QCheckBox(); self.invert_scroll_y.setChecked(gesture_cfg.get('invert_scroll_y', False))
-        mode_form.addRow("[스크롤] 거리 임계값", self.scroll_distance_threshold)
-        mode_form.addRow("[스크롤] 필요 프레임", self.scroll_required_frames)
-        mode_form.addRow("[스크롤] X축 반전", self.invert_scroll_x)
-        mode_form.addRow("[스크롤] Y축 반전", self.invert_scroll_y)
+        scroll_tab = QWidget()
+        scroll_form = QFormLayout(scroll_tab)
+        scroll_form.addRow("[스크롤] 거리 임계값", self.scroll_distance_threshold)
+        scroll_form.addRow("[스크롤] 필요 프레임", self.scroll_required_frames)
+        scroll_form.addRow("[스크롤] X축 반전", self.invert_scroll_x)
+        scroll_form.addRow("[스크롤] Y축 반전", self.invert_scroll_y)
+        mode_tabs.addTab(scroll_tab, "스크롤")
         # 스와이프 모드
         self.swipe_distance_threshold = QLineEdit(str(gesture_cfg.get('swipe_distance_threshold', '')))
         self.swipe_required_frames = QLineEdit(str(gesture_cfg.get('swipe_required_frames', '')))
         self.swipe_cooldown = QLineEdit(str(gesture_cfg.get('swipe_cooldown', '')))
         self.invert_swipe_x = QCheckBox(); self.invert_swipe_x.setChecked(gesture_cfg.get('invert_swipe_x', False))
         self.invert_swipe_y = QCheckBox(); self.invert_swipe_y.setChecked(gesture_cfg.get('invert_swipe_y', False))
-        mode_form.addRow("[스와이프] 거리 임계값", self.swipe_distance_threshold)
-        mode_form.addRow("[스와이프] 필요 프레임", self.swipe_required_frames)
-        mode_form.addRow("[스와이프] 쿨타임", self.swipe_cooldown)
-        mode_form.addRow("[스와이프] X축 반전", self.invert_swipe_x)
-        mode_form.addRow("[스와이프] Y축 반전", self.invert_swipe_y)
+        swipe_tab = QWidget()
+        swipe_form = QFormLayout(swipe_tab)
+        swipe_form.addRow("[스와이프] 거리 임계값", self.swipe_distance_threshold)
+        swipe_form.addRow("[스와이프] 필요 프레임", self.swipe_required_frames)
+        swipe_form.addRow("[스와이프] 쿨타임", self.swipe_cooldown)
+        swipe_form.addRow("[스와이프] X축 반전", self.invert_swipe_x)
+        swipe_form.addRow("[스와이프] Y축 반전", self.invert_swipe_y)
+        mode_tabs.addTab(swipe_tab, "스와이프")
         # 이동 모드
         self.move_stabilization_time = QLineEdit(str(gesture_cfg.get('mode_stabilization_time', '')))
         self.min_movement_threshold = QLineEdit(str(gesture_cfg.get('min_movement_threshold', '')))
-        mode_form.addRow("[이동] 모드 안정화 시간", self.move_stabilization_time)
-        mode_form.addRow("[이동] 최소 이동 임계값", self.min_movement_threshold)
+        move_tab = QWidget()
+        move_form = QFormLayout(move_tab)
+        move_form.addRow("[이동] 모드 안정화 시간", self.move_stabilization_time)
+        move_form.addRow("[이동] 최소 이동 임계값", self.min_movement_threshold)
+        mode_tabs.addTab(move_tab, "이동")
+        mode_layout.addWidget(mode_tabs)
         tabs.addTab(mode_tab, "모드별")
 
         # UI 탭
@@ -168,6 +291,7 @@ class CameraPanel(QWidget):
         self.app_logic = app_logic
         self.layout = QVBoxLayout(self)
         self.camera_label = QLabel("카메라 화면")
+        self.camera_label.setObjectName("CameraLabel")
         self.camera_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.camera_label)
         self.setLayout(self.layout)
@@ -234,18 +358,24 @@ class IOSMainWindow(QMainWindow):
     def __init__(self, app_logic):
         super().__init__()
         self.setWindowTitle("Hand Tracking Trackpad")
-        self.setMinimumSize(520, 800)
+        self.setMinimumSize(700, 500)
+        self.setStyleSheet(qss)
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
+        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+
         title = QLabel("Hand Tracking Trackpad")
+        title.setObjectName("TitleLabel")
         title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title)
+        main_layout.addWidget(title, 0)  # stretch=0
+
         self.camera_panel = CameraPanel(app_logic)
-        main_layout.addWidget(self.camera_panel)
-        # 설정 버튼 추가
+        main_layout.addWidget(self.camera_panel, 1)  # stretch=1
+
         self.settings_btn = QPushButton("설정")
         self.settings_btn.clicked.connect(lambda: self.open_settings(app_logic))
-        main_layout.addWidget(self.settings_btn)
+        main_layout.addWidget(self.settings_btn, 0)  # stretch=0
         self.setCentralWidget(main_widget)
     def open_settings(self, app_logic):
         dlg = SettingsDialog(app_logic, self)
