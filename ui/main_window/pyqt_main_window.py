@@ -20,10 +20,10 @@ class IOSMainWindow(QMainWindow):
         super().__init__()
         self.app_logic = app_logic
         self.setWindowTitle("SkyTouch")
-        self.setMinimumSize(400, 500)
+        self.setFixedSize(400, 300)  # 크기 고정
         
         # 윈도우 투명도 설정
-        self.setWindowOpacity(0.95)  # 95% 투명도
+        self.setWindowOpacity(0.80)  # 95% 투명도
         # self.setAttribute(Qt.WA_TranslucentBackground, True)  # 배경 투명화 비활성화
         
         # 스타일 관리자 초기화 및 테마 적용
