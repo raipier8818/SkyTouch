@@ -74,6 +74,11 @@ class CameraCapture:
             logger.error(f"프레임 가져오기 중 오류: {e}")
             return None
     
+    def read(self):
+        if self.cap is not None:
+            return self.cap.read()
+        return False, None
+    
     def get_actual_resolution(self) -> Tuple[int, int]:
         """
         실제 웹캠 해상도를 가져옴
