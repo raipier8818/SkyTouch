@@ -301,16 +301,34 @@ class IOSMainWindow(QMainWindow):
     
     def toggle_tracking(self):
         """트래킹 시작/중지 토글"""
+        # 버튼 비활성화 (중복 클릭 방지)
+        self.tracking_btn.setEnabled(False)
+        
         if not self.is_tracking:
             # 트래킹 시작
-            self.app_logic.start_tracking()
-            self.tracking_btn.setText("트래킹 중지")
-            self.is_tracking = True
+            try:
+                self.app_logic.start_tracking()
+                self.tracking_btn.setText("트래킹 중지")
+                self.is_tracking = True
+            except Exception as e:
+                print(f"트래킹 시작 실패: {e}")
+                # 실패 시 버튼 다시 활성화
+                self.tracking_btn.setEnabled(True)
+                return
         else:
             # 트래킹 중지
-            self.app_logic.stop_tracking()
-            self.tracking_btn.setText("트래킹 시작")
-            self.is_tracking = False
+            try:
+                self.app_logic.stop_tracking()
+                self.tracking_btn.setText("트래킹 시작")
+                self.is_tracking = False
+            except Exception as e:
+                print(f"트래킹 중지 실패: {e}")
+                # 실패 시 버튼 다시 활성화
+                self.tracking_btn.setEnabled(True)
+                return
+        
+        # 성공 시 버튼 다시 활성화
+        self.tracking_btn.setEnabled(True)
     
     def open_settings(self, app_logic):
         dlg = SettingsDialog(app_logic, self)
