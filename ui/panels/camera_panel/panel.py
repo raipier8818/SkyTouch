@@ -79,6 +79,20 @@ class CameraPanel(ttk.LabelFrame):
             if self.control_panel:
                 self.control_panel.set_loading_state(True)
             
+            # 웹캠이 닫혀있으면 재초기화
+            if self.camera_capture and not self.camera_capture.is_opened():
+                logger.info("웹캠 재초기화 중...")
+                try:
+                    self.camera_capture.reinitialize()
+                    logger.info("웹캠 재초기화 완료")
+                except Exception as e:
+                    logger.error(f"웹캠 재초기화 실패: {e}")
+                    self.camera_label.config(text="카메라를 열 수 없습니다")
+                    if self.control_panel:
+                        self.control_panel.set_loading_state(False)
+                    self.is_displaying = False
+                    return
+            
             # 별도 스레드에서 카메라 화면 표시
             self.display_thread = threading.Thread(target=self._display_loop, daemon=True)
             self.display_thread.start()
@@ -100,6 +114,12 @@ class CameraPanel(ttk.LabelFrame):
                 self.display_thread.join(timeout=1.0)  # 타임아웃 단축
                 if self.display_thread.is_alive():
                     logger.warning("디스플레이 스레드가 강제 종료되었습니다.")
+            
+            # 실제 웹캠 해제
+            if self.camera_capture:
+                logger.info("웹캠 리소스 해제 중...")
+                self.camera_capture.release()
+                logger.info("웹캠이 완전히 꺼졌습니다.")
             
             # 웹캠이 완전히 꺼진 후 콜백 호출
             self.camera_label.after(100, self._on_stop_complete)

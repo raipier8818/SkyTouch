@@ -41,6 +41,21 @@ class CameraCapture:
         if not self.cap.isOpened():
             raise CameraError("카메라를 열 수 없습니다.")
     
+    def reinitialize(self) -> None:
+        """카메라 재초기화"""
+        try:
+            # 기존 카메라 해제
+            if self.cap and self.cap.isOpened():
+                self.cap.release()
+            
+            # 새로 초기화
+            self._init_camera()
+            logger.info("카메라가 재초기화되었습니다.")
+            
+        except Exception as e:
+            logger.error(f"카메라 재초기화 실패: {e}")
+            raise CameraError(f"카메라 재초기화 실패: {e}")
+    
     def get_frame(self) -> Optional[np.ndarray]:
         """
         카메라에서 프레임 가져오기
