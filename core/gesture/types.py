@@ -18,7 +18,7 @@ class GestureType(Enum):
 class GestureData:
     """제스처 데이터 클래스"""
     palm_center: List[float]
-    gesture_mode: str  # "click", "scroll", "swipe", "move"
+    gesture_mode: GestureType  # GestureType enum 사용
     is_clicking: bool  # 클릭 모드에서 클릭
     is_right_clicking: bool  # 클릭 모드에서 우클릭
     is_double_clicking: bool  # 더블클릭

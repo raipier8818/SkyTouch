@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from utils.logging.logger import get_logger
 from exceptions.base import MouseError
 from core.camera.capture import CameraCapture
+from core.gesture.types import GestureType
 
 logger = get_logger(__name__)
 
@@ -86,7 +87,7 @@ class MouseController:
             logger.error(f"마우스 컨트롤러 초기화 실패: {e}")
             raise MouseError(f"마우스 컨트롤러 초기화 실패: {e}")
     
-    def update_mouse_position(self, palm_center: list, gesture_mode: str = "click", 
+    def update_mouse_position(self, palm_center: list, gesture_mode: GestureType = GestureType.CLICK, 
                             smoothing: float = 0.5, sensitivity: float = 1.5,
                             invert_x: bool = False, invert_y: bool = False) -> None:
         """
@@ -127,8 +128,8 @@ class MouseController:
             current_time = time.time()
             
             # 이동 모드가 아니면 마우스 이동 안함
-            if gesture_mode != "move":
-                logger.debug(f"{gesture_mode} 모드 - 마우스 이동 중단")
+            if gesture_mode != GestureType.MOVE:
+                logger.debug(f"{gesture_mode.value} 모드 - 마우스 이동 중단")
                 # 이전 손바닥 위치 업데이트 (중요!)
                 self.prev_palm_x = current_palm_x
                 self.prev_palm_y = current_palm_y

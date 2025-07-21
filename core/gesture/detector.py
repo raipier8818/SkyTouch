@@ -4,7 +4,7 @@ Gesture detector for Hand Tracking Trackpad application.
 import time
 from typing import Optional, Dict, Any
 
-from .types import GestureData, FingerState, ThumbDistance
+from .types import GestureData, FingerState, ThumbDistance, GestureType
 from .classifier import GestureClassifier
 from core.hand_tracking.landmarks import HandLandmarks
 from utils.logging.logger import get_logger
@@ -78,7 +78,7 @@ class GestureDetector:
             # 히스토리에 추가
             self._add_to_history(stable_gesture_mode, current_time, finger_state)
             
-            logger.debug(f"제스처 모드: {gesture_mode} → {stable_gesture_mode}")
+            logger.debug(f"제스처 모드: {gesture_mode.value} → {stable_gesture_mode.value}")
             
             # 각 모드별 세부 제스처 감지
             gesture_actions = self._detect_gesture_actions(
@@ -135,11 +135,11 @@ class GestureDetector:
             (point1[2] - point2[2])**2
         )
     
-    def _add_to_history(self, stable_gesture_mode: str, current_time: float, 
+    def _add_to_history(self, stable_gesture_mode: GestureType, current_time: float, 
                        finger_state: FingerState) -> None:
         """히스토리에 현재 프레임 정보 추가"""
         current_gesture_info = {
-            'mode': stable_gesture_mode,
+            'mode': stable_gesture_mode.value,
             'timestamp': current_time,
             'finger_states': {
                 'index_extended': finger_state.index_extended,
@@ -150,7 +150,7 @@ class GestureDetector:
         }
         self.classifier.add_to_gesture_history(current_gesture_info)
     
-    def _detect_gesture_actions(self, stable_gesture_mode: str, 
+    def _detect_gesture_actions(self, stable_gesture_mode: GestureType, 
                               thumb_distance: ThumbDistance, 
                               current_time: float, 
                               finger_state: FingerState,
@@ -168,24 +168,24 @@ class GestureDetector:
         }
         
         # 클릭 감지는 클릭 모드에서만 실행
-        if stable_gesture_mode == "click":
+        if stable_gesture_mode == GestureType.CLICK:
             click_actions = self.classifier.detect_click_actions(thumb_distance, current_time)
             actions.update(click_actions)
             logger.debug(f"클릭 감지 실행: 클릭 모드")
         else:
-            logger.debug(f"클릭 감지 건너뜀: 클릭 모드가 아님 (현재 모드: {stable_gesture_mode})")
+            logger.debug(f"클릭 감지 건너뜀: 클릭 모드가 아님 (현재 모드: {stable_gesture_mode.value})")
             # 클릭 모드가 아니면 클릭 상태 리셋
             self.classifier.reset_click_states()
         
         # 스크롤 모드 처리
-        if stable_gesture_mode == "scroll":
+        if stable_gesture_mode == GestureType.SCROLL:
             actions.update(self._handle_scroll_mode(landmarks))
         else:
             # 스크롤 모드가 아니면 스크롤 관련 변수 리셋
             self._reset_scroll_variables()
         
         # 스와이프 모드 처리
-        if stable_gesture_mode == "swipe":
+        if stable_gesture_mode == GestureType.SWIPE:
             swipe_actions = self._handle_swipe_mode(landmarks, current_time)
             actions.update(swipe_actions)
         else:
