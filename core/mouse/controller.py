@@ -5,6 +5,7 @@ import pyautogui
 import time
 import sys
 import subprocess
+import os
 from typing import Tuple
 from dataclasses import dataclass
 
@@ -47,6 +48,7 @@ class MouseController:
             
             # 화면 크기 가져오기
             self.screen_width, self.screen_height = pyautogui.size()
+            logger.info(f"화면 크기: {self.screen_width}x{self.screen_height}")
             
             # 카메라 캡처 참조 저장
             self.camera_capture = camera_capture
@@ -86,39 +88,109 @@ class MouseController:
                 scroll_direction=""
             )
             
+            # 권한 테스트
+            self._test_mouse_permissions()
+            
             logger.info("마우스 컨트롤러가 초기화되었습니다.")
             
         except Exception as e:
             logger.error(f"마우스 컨트롤러 초기화 실패: {e}")
             raise MouseError(f"마우스 컨트롤러 초기화 실패: {e}")
     
+    def _test_mouse_permissions(self) -> None:
+        """마우스 권한 테스트"""
+        try:
+            # 현재 마우스 위치 가져오기
+            current_pos = pyautogui.position()
+            logger.info(f"현재 마우스 위치: {current_pos}")
+            
+            # 작은 이동 테스트 (1픽셀)
+            test_x, test_y = current_pos
+            pyautogui.moveTo(test_x + 1, test_y, duration=0.001)
+            time.sleep(0.001)
+            pyautogui.moveTo(test_x, test_y, duration=0.001)
+            
+            logger.info("✅ 마우스 권한 테스트 성공")
+            
+        except Exception as e:
+            logger.error(f"❌ 마우스 권한 테스트 실패: {e}")
+            logger.error("접근성 권한이 제대로 설정되지 않았을 수 있습니다.")
+    
     def _check_accessibility_permissions(self) -> None:
         """macOS 접근성 권한 확인 및 안내"""
         if sys.platform == "darwin":  # macOS
             try:
-                # 접근성 권한 확인
-                result = subprocess.run([
-                    'osascript', '-e', 
-                    'tell application "System Events" to keystroke "a"'
-                ], capture_output=True, timeout=5)
+                # 앱이 빌드된 앱인지 확인
+                is_bundled_app = getattr(sys, 'frozen', False)
                 
-                if result.returncode != 0:
-                    logger.warning("⚠️  접근성 권한이 필요합니다!")
-                    logger.warning("시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호 > 접근성에서 SkyTouch를 추가해주세요.")
-                    logger.warning("권한 없이는 마우스 제어가 작동하지 않습니다.")
+                if is_bundled_app:
+                    logger.info("빌드된 앱에서 실행 중입니다.")
+                    # 빌드된 앱의 경우 더 강력한 권한 확인
+                    self._check_bundled_app_permissions()
+                else:
+                    logger.info("Python 스크립트에서 실행 중입니다.")
+                    # 스크립트 실행 시 권한 확인
+                    self._check_script_permissions()
                     
-                    # 사용자에게 권한 설정 안내
-                    self._show_permission_guide()
-                    
-            except subprocess.TimeoutExpired:
-                logger.warning("접근성 권한 확인 중 시간 초과")
             except Exception as e:
                 logger.warning(f"접근성 권한 확인 실패: {e}")
     
-    def _show_permission_guide(self) -> None:
-        """권한 설정 안내 메시지"""
+    def _check_bundled_app_permissions(self) -> None:
+        """빌드된 앱의 접근성 권한 확인"""
         try:
-            # 시스템 환경설정 열기
+            # 1. 접근성 권한 확인
+            result = subprocess.run([
+                'osascript', '-e', 
+                'tell application "System Events" to keystroke "a"'
+            ], capture_output=True, timeout=5)
+            
+            if result.returncode != 0:
+                logger.error("❌ 접근성 권한이 없습니다!")
+                logger.error("빌드된 앱의 경우 다음 단계를 따라주세요:")
+                logger.error("1. 시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호 > 접근성")
+                logger.error("2. 잠금 해제 후 '+' 버튼 클릭")
+                logger.error("3. 'SkyTouch.app'을 찾아서 추가")
+                logger.error("4. SkyTouch 앱을 재시작")
+                
+                # 시스템 환경설정 열기
+                self._open_accessibility_settings()
+                
+                # 권한 없이도 계속 실행 (사용자가 나중에 권한을 줄 수 있음)
+                logger.warning("권한 없이 실행 중입니다. 마우스 제어가 작동하지 않을 수 있습니다.")
+            else:
+                logger.info("✅ 접근성 권한이 확인되었습니다.")
+                
+        except subprocess.TimeoutExpired:
+            logger.warning("접근성 권한 확인 중 시간 초과")
+        except Exception as e:
+            logger.warning(f"접근성 권한 확인 실패: {e}")
+    
+    def _check_script_permissions(self) -> None:
+        """스크립트 실행 시 권한 확인"""
+        try:
+            result = subprocess.run([
+                'osascript', '-e', 
+                'tell application "System Events" to keystroke "a"'
+            ], capture_output=True, timeout=5)
+            
+            if result.returncode != 0:
+                logger.warning("⚠️  접근성 권한이 필요합니다!")
+                logger.warning("시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호 > 접근성에서 Terminal 또는 Python을 추가해주세요.")
+                
+                # 시스템 환경설정 열기
+                self._open_accessibility_settings()
+            else:
+                logger.info("✅ 접근성 권한이 확인되었습니다.")
+                
+        except subprocess.TimeoutExpired:
+            logger.warning("접근성 권한 확인 중 시간 초과")
+        except Exception as e:
+            logger.warning(f"접근성 권한 확인 실패: {e}")
+    
+    def _open_accessibility_settings(self) -> None:
+        """접근성 설정 열기"""
+        try:
+            # 시스템 환경설정의 접근성 페이지 열기
             subprocess.run(['open', 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'])
             logger.info("시스템 환경설정이 열렸습니다. SkyTouch를 접근성 목록에 추가해주세요.")
         except Exception as e:
@@ -221,8 +293,16 @@ class MouseController:
             new_x = max(margin, min(new_x, self.screen_width - margin - 1))
             new_y = max(margin, min(new_y, self.screen_height - margin - 1))
             
-            # 마우스 이동 (더 부드럽게)
-            pyautogui.moveTo(new_x, new_y, duration=0.001)
+            # 마우스 이동 시도
+            try:
+                pyautogui.moveTo(new_x, new_y, duration=0.001)
+                logger.debug(f"마우스 이동 성공: ({current_mouse_x}, {current_mouse_y}) -> ({new_x}, {new_y})")
+            except Exception as move_error:
+                logger.error(f"마우스 이동 실패: {move_error}")
+                # 권한 재확인
+                if not self._check_mouse_permission():
+                    logger.error("마우스 제어 권한이 없습니다. 접근성 설정을 확인해주세요.")
+                    return
             
             # 이전 손바닥 위치 업데이트
             self.prev_palm_x = current_palm_x
@@ -264,10 +344,12 @@ class MouseController:
         if sys.platform == "darwin":  # macOS
             try:
                 # 간단한 마우스 위치 조회로 권한 확인
-                pyautogui.position()
+                current_pos = pyautogui.position()
+                # 실제로 마우스를 움직여보기 (1픽셀만)
+                pyautogui.moveRel(0, 0, duration=0)
                 return True
-            except Exception:
-                logger.warning("마우스 제어 권한이 없습니다.")
+            except Exception as e:
+                logger.warning(f"마우스 제어 권한이 없습니다: {e}")
                 return False
         return True
     

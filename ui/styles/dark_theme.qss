@@ -7,7 +7,7 @@
  */
 
 QMainWindow {
-    background-color: rgba(28, 29, 33, 0.95); /* 설정창과 동일한 배경 */
+    background-color: rgba(28, 29, 33, 0.95);
     border: none;
 }
 
@@ -35,25 +35,107 @@ QWidget {
     border-radius: 0px;
 }
 
-/* 설정 버튼 - 최소화 */
+/* 설정 버튼 - 개선된 호버 효과 */
 #SettingsButton {
-    background-color: rgba(50, 51, 55, 0.7);
-    color: rgba(230, 230, 230, 0.8);
+    background-color: rgba(50, 51, 55, 0.8);
+    color: rgba(230, 230, 230, 0.9);
     font-size: 12px;
-    font-weight: 400;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid rgba(58, 59, 63, 0.6);
+    padding: 8px 16px;
+    margin: 3px;
+}
+
+#SettingsButton:hover {
+    background-color: rgba(10, 132, 255, 0.8);
+    color: white;
+    border-color: rgba(10, 132, 255, 0.9);
+}
+
+#SettingsButton:pressed {
+    background-color: rgba(10, 132, 255, 0.9);
+    color: white;
+    border-color: rgba(10, 132, 255, 1.0);
+}
+
+#SettingsButton:disabled {
+    background-color: rgba(50, 51, 55, 0.4);
+    color: rgba(138, 139, 144, 0.6);
+    border-color: rgba(58, 59, 63, 0.3);
+}
+
+/* 일반 버튼 스타일 */
+QPushButton {
+    background-color: rgba(50, 51, 55, 0.8);
+    color: rgba(230, 230, 230, 0.9);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid rgba(58, 59, 63, 0.6);
+    padding: 8px 16px;
+    margin: 3px;
+}
+
+QPushButton:hover {
+    background-color: rgba(10, 132, 255, 0.8);
+    color: white;
+    border-color: rgba(10, 132, 255, 0.9);
+}
+
+QPushButton:pressed {
+    background-color: rgba(10, 132, 255, 0.9);
+    color: white;
+    border-color: rgba(10, 132, 255, 1.0);
+}
+
+QPushButton:disabled {
+    background-color: rgba(50, 51, 55, 0.4);
+    color: rgba(138, 139, 144, 0.6);
+    border-color: rgba(58, 59, 63, 0.3);
+}
+
+/* 토글 버튼 스타일 (체크 가능한 버튼) */
+QPushButton:checked {
+    background-color: rgba(10, 132, 255, 0.9);
+    color: white;
+    border-color: rgba(10, 132, 255, 1.0);
+    font-weight: 600;
+}
+
+QPushButton:checked:hover {
+    background-color: rgba(10, 132, 255, 1.0);
+    border-color: rgba(10, 132, 255, 1.0);
+}
+
+/* 디버그 패널 전용 버튼 스타일 */
+#DebugButton {
+    background-color: rgba(45, 46, 50, 0.8);
+    color: rgba(230, 230, 230, 0.9);
+    font-size: 11px;
+    font-weight: 500;
     border-radius: 6px;
-    border: 1px solid rgba(58, 59, 63, 0.5);
+    border: 1px solid rgba(58, 59, 63, 0.6);
     padding: 6px 12px;
     margin: 2px;
 }
 
-#SettingsButton:hover {
-    background-color: rgba(63, 64, 69, 0.8);
-    border-color: rgba(10, 132, 255, 0.6);
+#DebugButton:hover {
+    background-color: rgba(10, 132, 255, 0.8);
+    color: white;
+    border-color: rgba(10, 132, 255, 0.9);
 }
 
-#SettingsButton:pressed {
-    background-color: rgba(10, 132, 255, 0.7);
+#DebugButton:checked {
+    background-color: rgba(10, 132, 255, 0.9);
+    color: white;
+    border-color: rgba(10, 132, 255, 1.0);
+    font-weight: 600;
+}
+
+#DebugButton:checked:hover {
+    background-color: rgba(10, 132, 255, 1.0);
+    border-color: rgba(10, 132, 255, 1.0);
 }
 
 /* --- 설정창 (Dialog) 스타일 --- */
@@ -260,4 +342,74 @@ QGroupBox::title {
     background: transparent;
     border: none;
     color: rgba(230, 230, 230, 0.8);
+} 
+
+/* 디버그 패널 전용 스타일 */
+QGroupBox {
+    border: 1px solid #555;
+    border-radius: 5px;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px 0 5px;
+}
+
+QCheckBox {
+    spacing: 8px;
+    color: #ffffff;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #555;
+    border-radius: 3px;
+    background-color: #2b2b2b;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #0078d4;
+    border: 1px solid #0078d4;
+}
+
+QCheckBox::indicator:checked::after {
+    content: "✓";
+    color: white;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+/* 디버그 패널 전용 스타일 */
+#DebugTitle {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+#DebugTextEdit {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 5px;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 9px;
+}
+
+#DebugStatus {
+    color: #888888;
+    font-size: 10px;
+    padding: 2px;
+}
+
+#DebugStats {
+    color: #aaaaaa;
+    font-size: 10px;
+    padding: 2px;
+    font-weight: 500;
 } 

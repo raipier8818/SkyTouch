@@ -3,7 +3,7 @@ Settings dialog for SkyTouch application.
 """
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTabWidget, QSizePolicy, QPushButton
 
-from .tabs import CameraTab, HandTrackingTab, GestureTab, ModeTab
+from .tabs import CameraTab, HandTrackingTab, GestureTab, ModeTab, DebugTab
 from ui.styles.style_manager import StyleManager
 
 from utils.logging.logger import get_logger
@@ -39,12 +39,14 @@ class SettingsDialog(QDialog):
         self.hand_tracking_tab = HandTrackingTab(self.config_manager)
         self.gesture_tab = GestureTab(self.config_manager)
         self.mode_tab = ModeTab(self.config_manager)
+        self.debug_tab = DebugTab(self.config_manager)
 
         # 탭 추가
         tabs.addTab(self.camera_tab, "카메라")
         tabs.addTab(self.hand_tracking_tab, "손 트래킹")
         tabs.addTab(self.gesture_tab, "제스처")
         tabs.addTab(self.mode_tab, "모드별 설정")
+        tabs.addTab(self.debug_tab, "디버그")
 
         layout.addWidget(tabs)
         
@@ -69,12 +71,14 @@ class SettingsDialog(QDialog):
             hand_cfg = self.hand_tracking_tab.get_settings()
             gesture_cfg = self.gesture_tab.get_settings()
             mode_cfg = self.mode_tab.get_settings()
+            debug_cfg = self.debug_tab.get_settings()
             
             # 설정 업데이트
             self.config_manager.config['camera'].update(cam_cfg)
             self.config_manager.config['hand_tracking'].update(hand_cfg)
             self.config_manager.config['gesture'].update(gesture_cfg)
             self.config_manager.config['gesture'].update(mode_cfg)
+            self.config_manager.config['ui'].update(debug_cfg)
             
             # 설정 저장
             self.config_manager.save_config()
