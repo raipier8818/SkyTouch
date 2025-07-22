@@ -143,3 +143,4 @@ config.json
 # OS
 .DS_Store
 Thumbs.db
+SkyTouch-*-macOS/

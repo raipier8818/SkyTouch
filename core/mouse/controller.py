@@ -3,6 +3,8 @@ Mouse controller for Hand Tracking Trackpad application.
 """
 import pyautogui
 import time
+import sys
+import subprocess
 from typing import Tuple
 from dataclasses import dataclass
 
@@ -40,6 +42,9 @@ class MouseController:
             config_manager: 설정 관리자
         """
         try:
+            # macOS 접근성 권한 확인
+            self._check_accessibility_permissions()
+            
             # 화면 크기 가져오기
             self.screen_width, self.screen_height = pyautogui.size()
             
@@ -86,6 +91,39 @@ class MouseController:
         except Exception as e:
             logger.error(f"마우스 컨트롤러 초기화 실패: {e}")
             raise MouseError(f"마우스 컨트롤러 초기화 실패: {e}")
+    
+    def _check_accessibility_permissions(self) -> None:
+        """macOS 접근성 권한 확인 및 안내"""
+        if sys.platform == "darwin":  # macOS
+            try:
+                # 접근성 권한 확인
+                result = subprocess.run([
+                    'osascript', '-e', 
+                    'tell application "System Events" to keystroke "a"'
+                ], capture_output=True, timeout=5)
+                
+                if result.returncode != 0:
+                    logger.warning("⚠️  접근성 권한이 필요합니다!")
+                    logger.warning("시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호 > 접근성에서 SkyTouch를 추가해주세요.")
+                    logger.warning("권한 없이는 마우스 제어가 작동하지 않습니다.")
+                    
+                    # 사용자에게 권한 설정 안내
+                    self._show_permission_guide()
+                    
+            except subprocess.TimeoutExpired:
+                logger.warning("접근성 권한 확인 중 시간 초과")
+            except Exception as e:
+                logger.warning(f"접근성 권한 확인 실패: {e}")
+    
+    def _show_permission_guide(self) -> None:
+        """권한 설정 안내 메시지"""
+        try:
+            # 시스템 환경설정 열기
+            subprocess.run(['open', 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'])
+            logger.info("시스템 환경설정이 열렸습니다. SkyTouch를 접근성 목록에 추가해주세요.")
+        except Exception as e:
+            logger.error(f"시스템 환경설정 열기 실패: {e}")
+            logger.info("수동으로 시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호 > 접근성에서 SkyTouch를 추가해주세요.")
     
     def update_mouse_position(self, palm_center: list, gesture_mode: GestureType = GestureType.CLICK, 
                             smoothing: float = 0.5, sensitivity: float = 1.5,
@@ -206,6 +244,11 @@ class MouseController:
         """
         try:
             if is_clicking and not self.current_state.is_clicking:
+                # 권한 확인
+                if not self._check_mouse_permission():
+                    logger.warning("마우스 제어 권한이 없어 클릭을 건너뜁니다.")
+                    return
+                    
                 pyautogui.click()
                 self.current_state.is_clicking = True
                 logger.info(f"마우스 클릭 실행 - 위치: ({self.current_state.x}, {self.current_state.y})")
@@ -216,6 +259,18 @@ class MouseController:
         except Exception as e:
             logger.error(f"클릭 처리 중 오류: {e}")
     
+    def _check_mouse_permission(self) -> bool:
+        """마우스 제어 권한 확인"""
+        if sys.platform == "darwin":  # macOS
+            try:
+                # 간단한 마우스 위치 조회로 권한 확인
+                pyautogui.position()
+                return True
+            except Exception:
+                logger.warning("마우스 제어 권한이 없습니다.")
+                return False
+        return True
+    
     def handle_right_click(self, is_right_clicking: bool) -> None:
         """
         우클릭 제스처 처리
@@ -225,6 +280,11 @@ class MouseController:
         """
         try:
             if is_right_clicking and not self.current_state.is_right_clicking:
+                # 권한 확인
+                if not self._check_mouse_permission():
+                    logger.warning("마우스 제어 권한이 없어 우클릭을 건너뜁니다.")
+                    return
+                    
                 pyautogui.rightClick()
                 self.current_state.is_right_clicking = True
                 logger.info(f"마우스 우클릭 실행 - 위치: ({self.current_state.x}, {self.current_state.y})")

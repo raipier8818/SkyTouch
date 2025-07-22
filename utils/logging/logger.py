@@ -67,5 +67,12 @@ class AppLogger:
 # 전역 로거 인스턴스
 def get_logger(name: str = "HandTrackpad") -> AppLogger:
     """로거 인스턴스 반환"""
-    log_file = f"logs/hand_trackpad_{datetime.now().strftime('%Y%m%d')}.log"
-    return AppLogger(name, log_file) 
+    # PyInstaller로 빌드된 환경에서는 로그 파일 생성하지 않음
+    import sys
+    if getattr(sys, 'frozen', False):
+        # PyInstaller로 빌드된 경우
+        return AppLogger(name, None)
+    else:
+        # 개발 환경에서는 로그 파일 생성
+        log_file = f"logs/hand_trackpad_{datetime.now().strftime('%Y%m%d')}.log"
+        return AppLogger(name, log_file) 
