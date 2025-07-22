@@ -2,8 +2,7 @@
 Mode-specific settings tab for SkyTouch application.
 """
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QFormLayout, 
-                             QLineEdit, QCheckBox, QSlider, QLabel, QHBoxLayout,
-                             QSpinBox, QGroupBox)
+                             QCheckBox, QSlider, QLabel, QHBoxLayout)
 from PyQt5.QtCore import Qt
 
 from ui.styles.style_manager import StyleManager

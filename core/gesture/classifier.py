@@ -1,8 +1,7 @@
 """
 Gesture classifier for Hand Tracking Trackpad application.
 """
-import time
-from typing import Dict, Any
+from typing import Dict
 
 from .types import GestureType, FingerState, ThumbDistance
 from utils.logging.logger import get_logger
@@ -32,6 +31,8 @@ class GestureClassifier:
         self.current_gesture_mode = GestureType.CLICK.value
         self.mode_start_time = 0.0
         self.is_mode_stable = False
+        self.mode_change_time = 0.0  # 모드 변경 시간 추적
+        self.mode_change_delay = 0.1  # 모드 변경 후 클릭 무시 시간 (초)
         
         # 클릭 상태 추적 변수들
         self.thumb_index_touching = False
@@ -108,17 +109,21 @@ class GestureClassifier:
         if len(self.gesture_history) > self.max_history_size:
             self.gesture_history.pop(0)
     
-    def handle_mode_change(self, gesture_mode: GestureType) -> None:
+    def handle_mode_change(self, gesture_mode: GestureType, current_time: float) -> None:
         """모드 변경 처리"""
         if gesture_mode.value != self.current_gesture_mode:
             # 클릭 모드로 진입할 때 로그
             if gesture_mode == GestureType.CLICK:
                 logger.debug("클릭 모드 진입")
             
+            # 모드 변경 시 클릭 상태 리셋 (우클릭 오발 방지)
+            self.reset_click_states()
+            
             self.gesture_history.clear()
             self.current_gesture_mode = gesture_mode.value
             self.is_mode_stable = True
-            logger.debug(f"모드 변경: {gesture_mode.value} (히스토리 초기화, 즉시 안정화)")
+            self.mode_change_time = current_time  # 모드 변경 시간 기록
+            logger.debug(f"모드 변경: {gesture_mode.value} (히스토리 초기화, 클릭 상태 리셋, 즉시 안정화)")
     
     def detect_click_actions(self, thumb_distance: ThumbDistance, current_time: float) -> Dict[str, bool]:
         """클릭 감지 (클릭 모드에서만 실행)"""
@@ -127,6 +132,10 @@ class GestureClassifier:
             'is_right_clicking': False,
             'is_double_clicking': False
         }
+        
+        # 모드 변경 후 일정 시간 동안 클릭 무시 (우클릭 오발 방지)
+        if current_time - self.mode_change_time < self.mode_change_delay:
+            return actions
         
         # 엄지-검지 클릭 감지 (클릭 모드에서만)
         if thumb_distance.thumb_index_distance < self.click_threshold:

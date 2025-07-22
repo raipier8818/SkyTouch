@@ -1,13 +1,13 @@
 """
 Camera settings tab for SkyTouch application.
 """
-from PyQt5.QtWidgets import (QWidget, QFormLayout, QLineEdit, QComboBox, 
-                             QSlider, QLabel, QHBoxLayout, QSpinBox, QPushButton)
+from PyQt5.QtWidgets import (QWidget, QFormLayout, QComboBox, 
+                             QSlider, QLabel, QHBoxLayout, QPushButton)
 from PyQt5.QtCore import Qt
 
 from ui.styles.style_manager import StyleManager
 from utils.logging.logger import get_logger
-from utils.camera_utils import get_available_cameras, test_camera
+from utils.camera_utils import get_available_cameras
 
 logger = get_logger(__name__)
 

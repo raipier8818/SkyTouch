@@ -2,7 +2,6 @@
 Main window for SkyTouch application.
 """
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton
-from PyQt5.QtCore import Qt
 
 from ui.styles.style_manager import StyleManager
 from ui.panels.camera_panel.panel import CameraPanel
@@ -23,7 +22,7 @@ class IOSMainWindow(QMainWindow):
         self.setFixedSize(400, 300)  # 크기 고정
         
         # 윈도우 투명도 설정
-        self.setWindowOpacity(0.80)  # 95% 투명도
+        self.setWindowOpacity(0.80)  # 80% 투명도
         # self.setAttribute(Qt.WA_TranslucentBackground, True)  # 배경 투명화 비활성화
         
         # 스타일 관리자 초기화 및 테마 적용

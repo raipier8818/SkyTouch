@@ -3,7 +3,7 @@ Mouse controller for Hand Tracking Trackpad application.
 """
 import pyautogui
 import time
-from typing import Tuple, Optional
+from typing import Tuple
 from dataclasses import dataclass
 
 from utils.logging.logger import get_logger

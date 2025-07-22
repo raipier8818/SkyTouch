@@ -1,8 +1,8 @@
 """
 Gesture settings tab for SkyTouch application.
 """
-from PyQt5.QtWidgets import (QWidget, QFormLayout, QLineEdit, QComboBox, 
-                             QSlider, QLabel, QHBoxLayout, QSpinBox, QCheckBox,
+from PyQt5.QtWidgets import (QWidget, QFormLayout, QComboBox, 
+                             QSlider, QLabel, QHBoxLayout,
                              QGroupBox, QVBoxLayout)
 from PyQt5.QtCore import Qt
 

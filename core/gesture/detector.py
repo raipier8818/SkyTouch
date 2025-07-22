@@ -70,7 +70,7 @@ class GestureDetector:
             gesture_mode = self.classifier.classify_gesture(finger_state, thumb_distance)
             
             # 모드 변경 처리
-            self.classifier.handle_mode_change(gesture_mode)
+            self.classifier.handle_mode_change(gesture_mode, current_time)
             
             # 히스토리 기반 안정화된 제스처 모드 결정
             stable_gesture_mode = self.classifier.get_stable_gesture_mode(gesture_mode)

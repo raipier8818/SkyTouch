@@ -4,7 +4,6 @@ MediaPipe wrapper for hand tracking.
 import cv2
 import mediapipe as mp
 import numpy as np
-from typing import Optional
 
 from utils.logging.logger import get_logger
 from exceptions.base import HandTrackingError

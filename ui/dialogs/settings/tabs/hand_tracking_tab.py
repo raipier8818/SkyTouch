@@ -1,8 +1,8 @@
 """
 Hand tracking settings tab for SkyTouch application.
 """
-from PyQt5.QtWidgets import (QWidget, QFormLayout, QLineEdit, QComboBox, 
-                             QSlider, QLabel, QHBoxLayout, QSpinBox, QCheckBox)
+from PyQt5.QtWidgets import (QWidget, QFormLayout, QComboBox, 
+                             QSlider, QLabel, QHBoxLayout, QCheckBox)
 from PyQt5.QtCore import Qt
 
 from ui.styles.style_manager import StyleManager

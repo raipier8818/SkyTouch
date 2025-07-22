@@ -3,7 +3,6 @@ Style manager for SkyTouch application.
 """
 import os
 from pathlib import Path
-from typing import Optional
 
 from utils.logging.logger import get_logger
 

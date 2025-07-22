@@ -2,7 +2,7 @@
 Hand landmarks processing for Hand Tracking Trackpad application.
 """
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
+from typing import List, Optional
 import numpy as np
 
 from utils.logging.logger import get_logger

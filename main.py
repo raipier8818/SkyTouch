@@ -10,8 +10,9 @@ Version: 1.0.0
 """
 
 import sys
-import os
 from pathlib import Path
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QIcon
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent
@@ -27,6 +28,23 @@ logger = get_logger(__name__)
 def main():
     """메인 함수"""
     try:
+        # QApplication 생성 (PyQt5 앱 아이콘 설정을 위해)
+        qt_app = QApplication(sys.argv)
+        
+        # 앱 아이콘 설정
+        icon_path = project_root / "SkyTouch.icns"
+        if icon_path.exists():
+            qt_app.setWindowIcon(QIcon(str(icon_path)))
+            logger.info("앱 아이콘이 설정되었습니다.")
+        else:
+            # .icns 파일이 없으면 PNG 파일 시도
+            png_icon_path = project_root / "asset" / "icons" / "1024.png"
+            if png_icon_path.exists():
+                qt_app.setWindowIcon(QIcon(str(png_icon_path)))
+                logger.info("PNG 아이콘이 설정되었습니다.")
+            else:
+                logger.warning("아이콘 파일을 찾을 수 없습니다.")
+        
         # 애플리케이션 생성 및 실행
         app = SkyTouchApp()
         app.run()

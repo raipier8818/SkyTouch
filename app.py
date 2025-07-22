@@ -1,9 +1,7 @@
 """
 Main application class for SkyTouch.
 """
-import threading
 import time
-from typing import Optional
 
 from core.hand_tracking.detector import HandDetector
 from core.gesture.detector import GestureDetector
@@ -14,8 +12,6 @@ from utils.logging.logger import get_logger
 from exceptions.base import HandTrackpadError
 import sys
 from PyQt5.QtWidgets import QApplication
-import qtmodern.styles
-import qtmodern.windows
 from ui.main_window.pyqt_main_window import IOSMainWindow
 
 logger = get_logger(__name__)
@@ -60,7 +56,12 @@ class SkyTouchApp:
             self.hand_detector = HandDetector(self.config_manager.get_hand_tracking_config())
             self.gesture_detector = GestureDetector(self.config_manager.get_gesture_config())
             self.mouse_controller = MouseController(self.camera_capture, self.config_manager)
-            self.qt_app = QApplication(sys.argv)
+            
+            # QApplication 인스턴스 가져오기 (이미 생성되어 있음)
+            self.qt_app = QApplication.instance()
+            if not self.qt_app:
+                self.qt_app = QApplication(sys.argv)
+            
             self.main_window = IOSMainWindow(self)
             
             logger.info("모든 컴포넌트가 초기화되었습니다.")
