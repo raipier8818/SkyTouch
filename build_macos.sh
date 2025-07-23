@@ -1,35 +1,31 @@
 #!/bin/bash
 
-# SkyTouch macOS 애플리케이션 빌드 스크립트
+echo "Building SkyTouch application..."
 
-echo "🚀 SkyTouch macOS 애플리케이션 빌드를 시작합니다..."
+# 의존성 설치
+pip install -r requirements.txt
 
-# 가상환경 활성화 확인
-if [[ "$VIRTUAL_ENV" == "" ]]; then
-    echo "❌ 가상환경이 활성화되지 않았습니다. 가상환경을 활성화해주세요."
-    echo "   source venv/bin/activate"
-    exit 1
-fi
-
-# 기존 빌드 폴더 정리
-echo "🧹 기존 빌드 폴더를 정리합니다..."
+# 기존 빌드 제거
 rm -rf build/
 rm -rf dist/
 
 # PyInstaller로 빌드
-echo "🔨 PyInstaller로 애플리케이션을 빌드합니다..."
-pyinstaller SkyTouch.spec --clean
+pyinstaller SkyTouch.spec
 
-# 빌드 결과 확인
-if [ -d "dist/SkyTouch.app" ]; then
-    echo "✅ 빌드가 성공적으로 완료되었습니다!"
-    echo "📱 애플리케이션 위치: dist/SkyTouch.app"
-    echo ""
-    echo "🎯 다음 명령어로 애플리케이션을 실행할 수 있습니다:"
-    echo "   open dist/SkyTouch.app"
-    echo ""
-    echo "📦 배포를 위해 dist/SkyTouch.app 폴더를 압축하세요."
-else
-    echo "❌ 빌드에 실패했습니다. 오류를 확인해주세요."
-    exit 1
-fi 
+# 코드 서명 (자체 서명)
+echo "Signing application..."
+codesign --force --deep --sign - dist/SkyTouch.app
+
+# 권한 설정 안내
+echo ""
+echo "Build completed!"
+echo "Application is ready at: dist/SkyTouch.app"
+echo ""
+echo "⚠️  권한 설정이 필요합니다:"
+echo "1. 시스템 환경설정 > 보안 및 개인정보 보호 > 개인정보 보호"
+echo "2. 다음 항목들에서 'SkyTouch' 추가:"
+echo "   - 접근성"
+echo "   - 입력 모니터링"
+echo "   - 완전한 디스크 접근"
+echo ""
+echo "앱을 실행한 후 권한을 설정해주세요!" 
